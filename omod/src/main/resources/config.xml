@@ -36,6 +36,8 @@
 	<require_modules>
 		<require_module>org.openmrs.module.fhir2</require_module>
 		<require_module>org.openmrs.module.uiframework</require_module>
+		<require_module>org.openmrs.module.coreapps</require_module>
+		<require_module>org.openmrs.module.appframework</require_module>
 	</require_modules>
 
 	<servlet>
