@@ -16,7 +16,7 @@ import org.openmrs.ui.framework.UiUtils;
 import org.openmrs.ui.framework.page.PageModel;
 import org.springframework.web.bind.annotation.RequestParam;
 
-public class FindPatientPageAndAddTokenController {
+public class FindPatientPageController {
 	
 	/**
 	 * This page is built to be shared across multiple apps. To use it, you must pass an "app" request
