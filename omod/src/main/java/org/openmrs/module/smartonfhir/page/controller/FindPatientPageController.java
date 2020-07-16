@@ -27,7 +27,7 @@ public class FindPatientPageController {
 	 * @param app
 	 * @param sessionContext
 	 */
-	public void get(PageModel model, @RequestParam("app") AppDescriptor app, @RequestParam("token") String token,
+	public void get(PageModel model, @RequestParam("app") AppDescriptor app, @RequestParam("access_token") String token,
 	        UiSessionContext sessionContext, UiUtils ui) {
 		
 		model.addAttribute("afterSelectedUrl", app.getConfig().get("afterSelectedUrl").getTextValue() + "&token=" + token);

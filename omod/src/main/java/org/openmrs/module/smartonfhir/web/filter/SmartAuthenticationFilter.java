@@ -74,47 +74,51 @@ public class SmartAuthenticationFilter extends KeycloakOIDCFilter {
 	public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
 		if (req instanceof HttpServletRequest) {
 			final HttpServletRequest httpRequest = (HttpServletRequest) req;
-			if (httpRequest.getRequestedSessionId() != null) {
-				Context.logout();
-			}
-			
-			String authorization = httpRequest.getHeader("Authorization");
-			if (!Context.isAuthenticated() && (authorization == null || !authorization.startsWith("Basic"))) {
-				// KeycloakOIDCFilter does the actual request handling
-				super.doFilter(req, res, (rq, rs) -> {});
-				
-				if (res.isCommitted()) {
-					return;
+			if (false) {
+				//			if (!(httpRequest.getRequestURI().contains("/.well-known")
+				//					|| httpRequest.getRequestURI().contains("/metadata"))) {
+				if (httpRequest.getRequestedSessionId() != null) {
+					Context.logout();
 				}
 				
-				if (httpRequest.getAttribute(KeycloakAccount.class.getName()) != null) {
-					OidcKeycloakAccount account = (OidcKeycloakAccount) httpRequest
-					        .getAttribute(KeycloakAccount.class.getName());
+				String authorization = httpRequest.getHeader("Authorization");
+				if (!Context.isAuthenticated() && (authorization == null || !authorization.startsWith("Basic"))) {
+					// KeycloakOIDCFilter does the actual request handling
+					super.doFilter(req, res, (rq, rs) -> {});
 					
-					String userName = account.getKeycloakSecurityContext().getToken().getPreferredUsername();
-					Authenticated authenticated;
-					try {
-						authenticated = Context.authenticate(new SmartTokenCredentials(userName));
+					if (res.isCommitted()) {
+						return;
 					}
-					catch (ContextAuthenticationException e) {
+					
+					if (httpRequest.getAttribute(KeycloakAccount.class.getName()) != null) {
+						OidcKeycloakAccount account = (OidcKeycloakAccount) httpRequest
+						        .getAttribute(KeycloakAccount.class.getName());
+						
+						String userName = account.getKeycloakSecurityContext().getToken().getPreferredUsername();
+						Authenticated authenticated;
+						try {
+							authenticated = Context.authenticate(new SmartTokenCredentials(userName));
+						}
+						catch (ContextAuthenticationException e) {
+							HttpServletResponse httpResponse = (HttpServletResponse) res;
+							httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+							return;
+						}
+						
+						log.debug("The user '{}' was successfully authenticated as OpenMRS user {}", userName,
+						    authenticated.getUser());
+						
+						// attempt to remove access_token from the query string
+						Matcher m = ACCESS_TOKEN.matcher(httpRequest.getRequestURI());
+						if (m.matches()) {
+							httpRequest.getRequestDispatcher(m.replaceFirst("")).forward(req, res);
+							return;
+						}
+					} else {
 						HttpServletResponse httpResponse = (HttpServletResponse) res;
 						httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
 						return;
 					}
-					
-					log.debug("The user '{}' was successfully authenticated as OpenMRS user {}", userName,
-					    authenticated.getUser());
-					
-					// attempt to remove access_token from the query string
-					Matcher m = ACCESS_TOKEN.matcher(httpRequest.getRequestURI());
-					if (m.matches()) {
-						httpRequest.getRequestDispatcher(m.replaceFirst("")).forward(req, res);
-						return;
-					}
-				} else {
-					HttpServletResponse httpResponse = (HttpServletResponse) res;
-					httpResponse.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
-					return;
 				}
 			}
 		}

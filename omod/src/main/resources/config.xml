@@ -59,6 +59,30 @@
 		<url-pattern>/ms/fhir2R3Servlet/*</url-pattern>
 	</filter-mapping>
 
+	<!--filter for adding CORS support-->
+	<!-- custom filter available in org.openmrs.module.oauth2.web.util-->
+	<filter>
+		<filter-name>CorsFilter</filter-name>
+		<filter-class>org.openmrs.module.smartonfhir.web.filter.CORSFilter</filter-class>
+	</filter>
+
+	<filter-mapping>
+		<filter-name>CorsFilter</filter-name>
+		<url-pattern>/*</url-pattern>
+	</filter-mapping>
+
+	<filter>
+		<filter-name>smartForwardingFilter</filter-name>
+		<filter-class>org.openmrs.module.smartonfhir.web.filter.SmartForwardingFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>smartForwardingFilter</filter-name>
+		<url-pattern>/ws/fhir2/*</url-pattern>
+		<url-pattern>/.well-known/smart-configuration</url-pattern>
+		<url-pattern>/metadata</url-pattern>
+		<url-pattern>/metadata/*</url-pattern>
+	</filter-mapping>
+
 	<!-- Internationalization -->
 	<!-- All message codes should start with @MODULE_ID@.* -->
 	<messages>
