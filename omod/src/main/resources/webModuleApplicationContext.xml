@@ -20,6 +20,5 @@
 	<bean class="org.openmrs.ui.framework.StandardModuleUiConfiguration">
 		<property name="moduleId" value="smartonfhir"/>
 	</bean>
-	<bean id="patientTokenController" class="org.openmrs.module.smartonfhir.controller.PatientTokenController"/>
 
 </beans>
