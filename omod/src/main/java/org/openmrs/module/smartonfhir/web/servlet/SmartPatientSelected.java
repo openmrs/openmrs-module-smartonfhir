@@ -7,11 +7,13 @@
  * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
  * graphic logo is a trademark of OpenMRS Inc.
  */
-package org.openmrs.module.smartonfhir.controller;
+package org.openmrs.module.smartonfhir.web.servlet;
 
-import java.io.UnsupportedEncodingException;
-import java.net.URI;
-import java.net.URISyntaxException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import java.io.IOException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.HashMap;
@@ -19,19 +21,19 @@ import java.util.Map;
 
 import org.keycloak.jose.jws.JWSBuilder;
 import org.keycloak.representations.JsonWebToken;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.stereotype.Controller;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 
-@Controller
-public class PatientTokenController {
+public class SmartPatientSelected extends HttpServlet {
 	
-	@RequestMapping(value = "/openmrs/smartonfhir/patientSelected/{patientID}")
-	private ResponseEntity<Void> tokenModifier(@RequestParam(value = "token") String token,
-	        @PathVariable(value = "{patientID}") String patientId) throws UnsupportedEncodingException, URISyntaxException {
+	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
+		String token = req.getParameter("token");
+		String patientId = req.getParameter("patientId");
+		
+		if (token == null || patientId == null) {
+			// this simulates what the controller would do if required parameteres are missing
+			res.sendError(HttpServletResponse.SC_NOT_FOUND);
+			return;
+		}
+		
 		Map<String, String> claims = new HashMap<String, String>();
 		claims.put("patient", patientId);
 		
@@ -45,7 +47,6 @@ public class PatientTokenController {
 		
 		String decodedUrl = URLDecoder.decode(token, "UTF-8");
 		System.out.println(decodedUrl.replace("{APP_TOKEN}", encodedToken));
-		return ResponseEntity.status(HttpStatus.FOUND).location(new URI(decodedUrl.replace("{APP_TOKEN}", encodedToken)))
-		        .build();
+		res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", encodedToken));
 	}
 }
