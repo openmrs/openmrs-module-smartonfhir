@@ -83,6 +83,9 @@
 	<filter-mapping>
 		<filter-name>smartForwardingFilter</filter-name>
 		<url-pattern>/ws/fhir2/*</url-pattern>
+		<url-pattern>/.well-known/smart-configuration</url-pattern>
+		<url-pattern>/metadata</url-pattern>
+		<url-pattern>/metadata/*</url-pattern>
 	</filter-mapping>
 
 	<!-- Internationalization -->
