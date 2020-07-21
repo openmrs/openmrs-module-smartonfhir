@@ -22,6 +22,7 @@ import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.keycloak.crypto.Algorithm;
 import org.keycloak.crypto.JavaAlgorithm;
 import org.keycloak.crypto.KeyWrapper;
 import org.keycloak.crypto.MacSignatureSignerContext;
@@ -56,9 +57,9 @@ public class SmartPatientSelected extends HttpServlet {
 		// create token signer
 		String secretKey = "dbc3ad18-cce2-4793-a0d1-5fbbc733bd56";
 		SecretKeySpec hmacSecretKeySpec = new SecretKeySpec(secretKey.getBytes(),
-		        JavaAlgorithm.getJavaAlgorithm("HmacSHA256"));
+		        JavaAlgorithm.getJavaAlgorithm(Algorithm.HS256));
 		KeyWrapper keyWrapper = new KeyWrapper();
-		keyWrapper.setAlgorithm("HmacSHA256");
+		keyWrapper.setAlgorithm(Algorithm.HS256);
 		keyWrapper.setSecretKey(hmacSecretKeySpec);
 		SignatureSignerContext signer = new MacSignatureSignerContext(keyWrapper);
 		
