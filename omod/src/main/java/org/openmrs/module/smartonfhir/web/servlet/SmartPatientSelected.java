@@ -40,6 +40,10 @@ public class SmartPatientSelected extends HttpServlet {
 		String state = req.getParameter("state");
 		System.out.println("state " + state);
 		
+		String[] tokenPart = token.split("\\.");
+		
+		System.out.println(new String(Base64.getDecoder().decode(tokenPart[1]), StandardCharsets.UTF_8));
+		
 		if (token == null || patientId == null) {
 			// this simulates what the controller would do if required parameteres are missing
 			res.sendError(HttpServletResponse.SC_NOT_FOUND);
@@ -56,7 +60,7 @@ public class SmartPatientSelected extends HttpServlet {
 		}
 		
 		// create token signer
-		String secretKey = "dbc3ad18-cce2-4793-a0d1-5fbbc733bd56";
+		String secretKey = "siddharth123";
 		SecretKeySpec hmacSecretKeySpec = new SecretKeySpec(secretKey.getBytes(),
 		        JavaAlgorithm.getJavaAlgorithm(Algorithm.HS256));
 		KeyWrapper keyWrapper = new KeyWrapper();
@@ -71,8 +75,8 @@ public class SmartPatientSelected extends HttpServlet {
 		String decodedUrl = URLDecoder.decode(token, "UTF-8");
 		String finalToken = decodedUrl.replace("{APP_TOKEN}", encodedToken);
 		String[] tokenParts = finalToken.split("\\.");
+		
 		System.out.println(new String(Base64.getDecoder().decode(tokenParts[1]), StandardCharsets.UTF_8));
-		//		System.out.println(decodedUrl.replace("{APP_TOKEN}", encodedToken));
 		res.sendRedirect("http://127.0.0.1:9090/?code=" + finalToken + "&state=" + state);
 	}
 }
