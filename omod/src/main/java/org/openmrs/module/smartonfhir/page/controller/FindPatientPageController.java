@@ -27,11 +27,10 @@ public class FindPatientPageController {
 	 * @param app
 	 * @param sessionContext
 	 */
-	public void get(PageModel model, @RequestParam("app") AppDescriptor app, @RequestParam("access_token") String token,
-	        @RequestParam("state") String state, UiSessionContext sessionContext, UiUtils ui) {
+	public void get(PageModel model, @RequestParam("app") AppDescriptor app, @RequestParam("token") String token,
+	        UiSessionContext sessionContext, UiUtils ui) {
 		
-		model.addAttribute("afterSelectedUrl",
-		    app.getConfig().get("afterSelectedUrl").getTextValue() + "&token=" + token + "&state=" + state);
+		model.addAttribute("afterSelectedUrl", app.getConfig().get("afterSelectedUrl").getTextValue() + "&token=" + token);
 		model.addAttribute("heading", app.getConfig().get("heading").getTextValue());
 		model.addAttribute("label", app.getConfig().get("label").getTextValue());
 		model.addAttribute("showLastViewedPatients", app.getConfig().get("showLastViewedPatients").getBooleanValue());
