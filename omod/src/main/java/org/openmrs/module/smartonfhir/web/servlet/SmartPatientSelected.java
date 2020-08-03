@@ -17,7 +17,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.Map;
@@ -29,15 +28,15 @@ public class SmartPatientSelected extends HttpServlet {
 	
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
 		String token = req.getParameter("token");
-		System.out.println("token " + token);
+		//		System.out.println("token " + token);
 		String patientId = req.getParameter("patientId");
-		System.out.println("patientId " + patientId);
+		//		System.out.println("patientId " + patientId);
 		String state = req.getParameter("state");
-		System.out.println("state " + state);
+		//		System.out.println("state " + state);
 		
 		String[] tokenPart = token.split("\\.");
 		
-		System.out.println(new String(Base64.getDecoder().decode(tokenPart[1]), StandardCharsets.UTF_8));
+		//		System.out.println(new String(Base64.getDecoder().decode(tokenPart[1]), StandardCharsets.UTF_8));
 		
 		if (token == null || patientId == null) {
 			// this simulates what the controller would do if required parameteres are missing
@@ -62,15 +61,25 @@ public class SmartPatientSelected extends HttpServlet {
 		claims.put("patient", patientId);
 		
 		JsonWebToken tokenSentBack = new JsonWebToken();
-		for (Map.Entry<String, String> entry : claims.entrySet()) {
-			String decodedValue = URLDecoder.decode(entry.getValue(), "UTF-8");
-			tokenSentBack.setOtherClaims(entry.getKey(), decodedValue);
-		}
+		System.out.println(patientId);
+		tokenSentBack.setOtherClaims("patient", patientId);
+		//		for (Map.Entry<String, String[]> entry : req.getParameterMap().entrySet()) {
+		//			String name = entry.getKey();
+		//			if (!name.startsWith("_")) {
+		//				String decodedValue = URLDecoder.decode(entry.getValue()[0], "UTF-8");
+		//				tokenSentBack.setOtherClaims(name, decodedValue);
+		//			}
+		//		}
 		
 		String appToken = new JWSBuilder().jsonContent(tokenSentBack).hmac256(hmacSecretKeySpec);
+		System.out.println(appToken);
 		String encodedToken = URLEncoder.encode(appToken, "UTF-8");
 		
 		String decodedUrl = URLDecoder.decode(token, "UTF-8");
+		decodedUrl = decodedUrl + "&client_id" + req.getParameter("client_id") + "&tab_id" + req.getParameter("tab_id")
+		        + "&app-token" + req.getParameter("app-token");
+		System.out.println(decodedUrl);
+		//		System.out.println(new String(Base64.getDecoder().decode(tokenPart[1]), StandardCharsets.UTF_8));
 		res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", encodedToken));
 		//
 		//
