@@ -76,8 +76,8 @@ public class SmartPatientSelected extends HttpServlet {
 		String encodedToken = URLEncoder.encode(appToken, "UTF-8");
 		
 		String decodedUrl = URLDecoder.decode(token, "UTF-8");
-		decodedUrl = decodedUrl + "&client_id" + req.getParameter("client_id") + "&tab_id" + req.getParameter("tab_id")
-		        + "&app-token" + req.getParameter("app-token");
+		decodedUrl = decodedUrl + "&client_id=" + req.getParameter("client_id") + "&tab_id=" + req.getParameter("tab_id")
+		        + "&execution=" + req.getParameter("execution") + "&app-token=" + req.getParameter("app-token");
 		System.out.println(decodedUrl);
 		//		System.out.println(new String(Base64.getDecoder().decode(tokenPart[1]), StandardCharsets.UTF_8));
 		res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", encodedToken));
