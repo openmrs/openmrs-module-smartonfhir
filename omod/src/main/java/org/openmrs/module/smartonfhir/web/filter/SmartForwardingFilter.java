@@ -35,13 +35,14 @@ public class SmartForwardingFilter implements Filter {
 			HttpServletRequest request = (HttpServletRequest) req;
 			if (request.getRequestURI().contains("/.well-known") || request.getRequestURI().contains("/metadata")) {
 				req.getRequestDispatcher("/ms/smartConfig").forward(req, res);
+				return;
 			}
 			if (request.getRequestURI().contains("/smartPatientSelected")) {
 				req.getRequestDispatcher("/ms/smartPatientSelected").forward(req, res);
+				return;
 			}
 		}
-
-		((HttpServletResponse) res).sendError(HttpServletResponse.SC_NOT_FOUND);
+		chain.doFilter(req, res);
 	}
 
 	@Override
