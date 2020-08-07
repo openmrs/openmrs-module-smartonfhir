@@ -233,6 +233,14 @@
 				<version>2.0.7</version>
 				<scope>test</scope>
 			</dependency>
+
+			<dependency>
+				<groupId>org.openmrs.module</groupId>
+				<artifactId>uiframework-api</artifactId>
+				<version>${uiframeworkVersion}</version>
+				<type>jar</type>
+				<scope>provided</scope>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -283,6 +291,20 @@
 			<groupId>org.powermock</groupId>
 			<artifactId>powermock-api-mockito2</artifactId>
 			<scope>test</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openmrs.module</groupId>
+			<artifactId>appframework-api</artifactId>
+			<version>${appframeworkVersion}</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<dependency>
+			<groupId>org.openmrs.module</groupId>
+			<artifactId>coreapps-omod</artifactId>
+			<version>1.28.0</version>
+			<scope>provided</scope>
 		</dependency>
 	</dependencies>
 
@@ -591,5 +613,8 @@
 		<openmrsPlatformVersion>2.3.0</openmrsPlatformVersion>
 		<openmrsPlatformToolsVersion>2.3.0</openmrsPlatformToolsVersion>
 		<keycloakVersion>10.0.1</keycloakVersion>
+		<uiframeworkVersion>3.15.0</uiframeworkVersion>
+		<appframeworkVersion>2.9</appframeworkVersion>
+		<appuiVersion>1.7</appuiVersion>
 	</properties>
 </project>
