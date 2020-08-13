@@ -22,6 +22,11 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
+import org.openmrs.api.context.Authenticated;
+import org.openmrs.api.context.Context;
+import org.openmrs.api.context.ContextAuthenticationException;
+import org.openmrs.module.smartonfhir.web.smart.SmartTokenCredentials;
+
 public class AuthenticationByPassFilter implements Filter {
 	
 	@Override
@@ -34,84 +39,46 @@ public class AuthenticationByPassFilter implements Filter {
 	        throws IOException, ServletException {
 		HttpServletRequest request = (HttpServletRequest) servletRequest;
 		HttpServletResponse response = (HttpServletResponse) servletResponse;
-		if (!(request.getRequestURI().contains("/.well-known") || request.getRequestURI().contains("/metadata"))) {
-			if (request.getParameter("token") != null) {
-				
-				String token = request.getParameter("token");
-				
+		if (request.getParameter("token") != null) {
+			
+			String token = request.getParameter("token");
+			
+			//			JWSInput jwsInput = null;
+			//			try {
+			//				jwsInput = new JWSInput(token);
+			//			}
+			//			catch (JWSInputException e) {
+			//				e.printStackTrace();
+			//			}
+			
+			if (true) {
+				//				if (jwsInput != null && jwsInput.verify("aSqzP4reFgWR4j94BDT1r+81QYp/NYbY9SBwXtqV1ko=")) {
 				String[] tokenPart = token.split("\\.");
 				
 				String decodedToken = new String(Base64.getDecoder().decode(tokenPart[1]), StandardCharsets.UTF_8);
 				
-				String username = decodedToken.substring(decodedToken.indexOf("username") + 3,
+				String username = decodedToken.substring(decodedToken.indexOf("username") + 11,
 				    decodedToken.lastIndexOf("\""));
 				System.out.println("Username in AuthenticationByPassFilter " + username);
 				System.out.println("AuthenticationByPassFilter "
 				        + new String(Base64.getDecoder().decode(tokenPart[1]), StandardCharsets.UTF_8));
+				
+				Authenticated authenticated;
+				try {
+					authenticated = Context.authenticate(new SmartTokenCredentials(username));
+				}
+				catch (ContextAuthenticationException e) {
+					((HttpServletResponse) response).sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+					return;
+				}
+			} else {
+				System.out.println("AuthenticationByPassFilter Token not verified");
 			}
 		}
-		
 		filterChain.doFilter(request, response);
 	}
 	
 	@Override
 	public void destroy() {
 	}
-	
-	//	@Override
-	//	public void doGet(HttpServletRequest req, HttpServletResponse res, FilterChain chain) throws IOException {
-	//		String token = req.getParameter("token");
-	//
-	//		String[] tokenPart = token.split("\\.");
-	//
-	//		String decodedToken = new String(Base64.getDecoder().decode(tokenPart[1]), StandardCharsets.UTF_8);
-	//
-	//		String username = decodedToken.substring(decodedToken.indexOf("username") + 3, decodedToken.lastIndexOf("\""));
-	//		System.out.println("Username in AuthenticationByPassFilter " + username);
-	//		System.out.println(new String(Base64.getDecoder().decode(tokenPart[1]), StandardCharsets.UTF_8));
-	//
-	//		if (token == null) {
-	//			// this simulates what the controller would do if required parameteres are missing
-	//			res.sendError(HttpServletResponse.SC_NOT_FOUND);
-	//			return;
-	//		}
-	//
-	//		//		String secret = "aSqzP4reFgWR4j94BDT1r+81QYp/NYbY9SBwXtqV1ko=";
-	//		//
-	//		//		//		JsonWebToken tokenSentBack = new JsonWebToken();
-	//		//		SecretKeySpec hmacSecretKeySpec = new SecretKeySpec(Base64.getDecoder().decode(secret), "HmacSHA256");
-	//		//
-	//		//		//		for (java.util.Map.Entry<String, String[]> me : request.getParameterMap().entrySet()) {
-	//		//		//			String name = me.getKey();
-	//		//		//			if (! name.startsWith("_")) {
-	//		//		//				String decodedValue = URLDecoder.decode(me.getValue()[0], "UTF-8");
-	//		//		//				tokenSentBack.setOtherClaims(name, decodedValue);
-	//		//		//			}
-	//		//		//		}
-	//		//
-	//		//		Map<String, String> claims = new HashMap<String, String>();
-	//		//		claims.put("patient", patientId);
-	//		//
-	//		//		JsonWebToken tokenSentBack = new JsonWebToken();
-	//		//		System.out.println(patientId);
-	//		//		tokenSentBack.setOtherClaims("patient", patientId);
-	//		//		//		for (Map.Entry<String, String[]> entry : req.getParameterMap().entrySet()) {
-	//		//		//			String name = entry.getKey();
-	//		//		//			if (!name.startsWith("_")) {
-	//		//		//				String decodedValue = URLDecoder.decode(entry.getValue()[0], "UTF-8");
-	//		//		//				tokenSentBack.setOtherClaims(name, decodedValue);
-	//		//		//			}
-	//		//		//		}
-	//		//
-	//		//		String appToken = new JWSBuilder().jsonContent(tokenSentBack).hmac256(hmacSecretKeySpec);
-	//		//		System.out.println(appToken);
-	//		//		String encodedToken = URLEncoder.encode(appToken, "UTF-8");
-	//		//
-	//		//		String decodedUrl = URLDecoder.decode(token, "UTF-8");
-	//		//		decodedUrl = decodedUrl + "&client_id=" + req.getParameter("client_id") + "&tab_id=" + req.getParameter("tab_id")
-	//		//				+ "&execution=" + req.getParameter("execution") + "&app-token=" + req.getParameter("app-token");
-	//		//		System.out.println(decodedUrl);
-	//		//		//		System.out.println(new String(Base64.getDecoder().decode(tokenPart[1]), StandardCharsets.UTF_8));
-	//		//		res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", encodedToken));
-	//	}
 }
