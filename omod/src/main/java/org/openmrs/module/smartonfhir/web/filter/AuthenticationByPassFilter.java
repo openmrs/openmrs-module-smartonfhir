@@ -17,10 +17,10 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import lombok.extern.slf4j.Slf4j;
 import org.keycloak.jose.jws.JWSInput;
@@ -35,6 +35,8 @@ import org.postgresql.util.Base64;
 @Slf4j
 public class AuthenticationByPassFilter implements Filter {
 	
+	private static final Pattern KEY_PARAM = Pattern.compile("key=([^&]*)");
+	
 	@Override
 	public void init(FilterConfig filterConfig) {
 		
@@ -48,7 +50,7 @@ public class AuthenticationByPassFilter implements Filter {
 		
 		final String tokenParam = request.getParameter("token");
 		
-		if (tokenParam != null) {
+		if (tokenParam != null && tokenParam.contains("key=")) {
 			//			final URIBuilder uriBuilder;
 			//			try {
 			//				uriBuilder = new URIBuilder(URLDecoder.decode(tokenParam, StandardCharsets.UTF_8.name()));
@@ -62,14 +64,12 @@ public class AuthenticationByPassFilter implements Filter {
 			//			final String token = uriBuilder.getQueryParams().stream().filter(nvp -> nvp.getName().equalsIgnoreCase("key"))
 			//			        .map(NameValuePair::getValue).findFirst().orElse(null);
 			
-			String token = tokenParam.substring(tokenParam.indexOf("key=") + 4, tokenParam.indexOf("&"));
-			
-			System.out.println("key ");
-			System.out.println(token);
-			String[] tokenPart = token.split("\\.");
-			
-			System.out.println("key VALUE");
-			System.out.println(new String(java.util.Base64.getDecoder().decode(tokenPart[1]), StandardCharsets.UTF_8));
+			Matcher m = KEY_PARAM.matcher(tokenParam);
+			String token = null;
+			if (m.find()) {
+				token = m.group(1);
+				System.out.println("token key value " + token);
+			}
 			
 			if (token == null) {
 				log.warn("Could not find token for current request");
@@ -121,12 +121,12 @@ public class AuthenticationByPassFilter implements Filter {
 			
 			filterChain.doFilter(request, response);
 			
-			Context.logout();
-			
-			HttpSession session = request.getSession(false);
-			if (session != null) {
-				session.invalidate();
-			}
+			//			Context.logout();
+			//
+			//			HttpSession session = request.getSession(false);
+			//			if (session != null) {
+			//				session.invalidate();
+			//			}
 		} else {
 			filterChain.doFilter(request, response);
 		}
