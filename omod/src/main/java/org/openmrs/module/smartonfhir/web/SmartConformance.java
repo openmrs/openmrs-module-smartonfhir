@@ -9,16 +9,18 @@
  */
 package org.openmrs.module.smartonfhir.web;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class SmartConformance {
 	
-	@JsonProperty("authorization_endpoint")
+	@JsonProperty(value = "authorization_endpoint", required = true)
 	private String authorizationEndpoint;
 	
-	@JsonProperty("token_endpoint")
+	@JsonProperty(value = "token_endpoint", required = true)
 	private String tokenEndpoint;
 	
 	@JsonProperty("token_endpoint_auth_methods_supported")
@@ -42,6 +44,6 @@ public class SmartConformance {
 	@JsonProperty("revocation_endpoint")
 	private String revocationEndpoint;
 	
-	@JsonProperty("capabilities")
+	@JsonProperty(value = "capabilities", required = true)
 	private String[] capabilities;
 }

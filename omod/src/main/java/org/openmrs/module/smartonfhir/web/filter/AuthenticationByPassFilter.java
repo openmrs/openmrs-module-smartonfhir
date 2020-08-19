@@ -23,6 +23,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import lombok.extern.slf4j.Slf4j;
+import org.keycloak.common.util.Base64;
 import org.keycloak.jose.jws.JWSInput;
 import org.keycloak.jose.jws.JWSInputException;
 import org.keycloak.jose.jws.crypto.HMACProvider;
@@ -30,12 +31,13 @@ import org.keycloak.representations.JsonWebToken;
 import org.openmrs.api.context.Context;
 import org.openmrs.api.context.ContextAuthenticationException;
 import org.openmrs.module.smartonfhir.web.smart.SmartTokenCredentials;
-import org.postgresql.util.Base64;
 
 @Slf4j
 public class AuthenticationByPassFilter implements Filter {
 	
-	private static final Pattern KEY_PARAM = Pattern.compile("key=([^&]*)");
+	public static final String SMART_AUTH_BYPASS = "SMART_AUTH_BYPASS";
+	
+	private static final Pattern KEY_PARAM = Pattern.compile("^key=([^&]*)(?:&|$)");
 	
 	@Override
 	public void init(FilterConfig filterConfig) {
@@ -48,88 +50,73 @@ public class AuthenticationByPassFilter implements Filter {
 		HttpServletRequest request = (HttpServletRequest) servletRequest;
 		HttpServletResponse response = (HttpServletResponse) servletResponse;
 		
-		final String tokenParam = request.getParameter("token");
-		
-		if (tokenParam != null && tokenParam.contains("key=")) {
-			//			final URIBuilder uriBuilder;
-			//			try {
-			//				uriBuilder = new URIBuilder(URLDecoder.decode(tokenParam, StandardCharsets.UTF_8.name()));
-			//			}
-			//			catch (URISyntaxException e) {
-			//				log.error("Could not parse tokenParam {}", tokenParam);
-			//				filterChain.doFilter(servletRequest, servletResponse);
-			//				return;
-			//			}
-			
-			//			final String token = uriBuilder.getQueryParams().stream().filter(nvp -> nvp.getName().equalsIgnoreCase("key"))
-			//			        .map(NameValuePair::getValue).findFirst().orElse(null);
-			
-			Matcher m = KEY_PARAM.matcher(tokenParam);
-			String token = null;
-			if (m.find()) {
-				token = m.group(1);
-				System.out.println("token key value " + token);
-			}
-			
-			if (token == null) {
-				log.warn("Could not find token for current request");
-				filterChain.doFilter(servletRequest, servletResponse);
-				return;
-			}
-			
-			JWSInput jwsInput;
-			JsonWebToken webToken;
-			try {
-				jwsInput = new JWSInput(token);
-				webToken = jwsInput.readJsonContent(JsonWebToken.class);
-			}
-			catch (JWSInputException e) {
-				log.error("Error while reading JWS token", e);
-				response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
-				return;
-			}
-			
-			String userToken = (String) webToken.getOtherClaims().get("user");
-			
-			try {
-				jwsInput = new JWSInput(userToken);
-				
-				if (!HMACProvider.verify(jwsInput, Base64.decode("aSqzP4reFgWR4j94BDT1r+81QYp/NYbY9SBwXtqV1ko="))) {
-					log.error("Error validating user token");
-					response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
-					return;
-				}
-				
-				webToken = jwsInput.readJsonContent(JsonWebToken.class);
-			}
-			catch (JWSInputException e) {
-				log.error("Error while reading user token", e);
-				response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
-				return;
-			}
-			
-			final String username = webToken.getSubject();
-			
-			try {
-				Context.authenticate(new SmartTokenCredentials(username));
-			}
-			catch (ContextAuthenticationException e) {
-				log.error("Error while logging in as user {}", username, e);
-				response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
-				return;
-			}
-			
-			filterChain.doFilter(request, response);
-			
-			//			Context.logout();
-			//
-			//			HttpSession session = request.getSession(false);
-			//			if (session != null) {
-			//				session.invalidate();
-			//			}
-		} else {
-			filterChain.doFilter(request, response);
+		if (request.getRequestedSessionId() != null && !request.isRequestedSessionIdValid()) {
+			Context.logout();
 		}
+		
+		if (!Context.isAuthenticated()) {
+			final String tokenParam = request.getParameter("token");
+			
+			if (tokenParam != null) {
+				int keyPos = tokenParam.indexOf("key=");
+				if (keyPos >= 0) {
+					Matcher m = KEY_PARAM.matcher(tokenParam.substring(keyPos));
+					if (m.find()) {
+						final String key = m.group(1);
+						
+						final String userToken;
+						try {
+							JWSInput jwsInput = new JWSInput(key);
+							JsonWebToken webToken = jwsInput.readJsonContent(JsonWebToken.class);
+							userToken = (String) webToken.getOtherClaims().get("user");
+						}
+						catch (JWSInputException e) {
+							log.error("Error while reading JWS token", e);
+							response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+							return;
+						}
+						
+						if (userToken == null) {
+							log.error("Could not read user entry from token");
+							response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+							return;
+						}
+						
+						final String username;
+						try {
+							JWSInput jwsInput = new JWSInput(userToken);
+							
+							if (!HMACProvider.verify(jwsInput,
+							    Base64.decode("aSqzP4reFgWR4j94BDT1r+81QYp/NYbY9SBwXtqV1ko="))) {
+								log.error("Error validating user token");
+								response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+								return;
+							}
+							
+							JsonWebToken webToken = jwsInput.readJsonContent(JsonWebToken.class);
+							username = webToken.getSubject();
+						}
+						catch (JWSInputException e) {
+							log.error("Error while reading user token", e);
+							response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+							return;
+						}
+						
+						try {
+							Context.authenticate(new SmartTokenCredentials(username));
+							request.setAttribute(SMART_AUTH_BYPASS, true);
+						}
+						catch (ContextAuthenticationException e) {
+							log.error("Error while logging in as user {}", username, e);
+							response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+							return;
+						}
+					}
+				}
+			}
+		}
+		
+		filterChain.doFilter(request, response);
 	}
 	
 	@Override

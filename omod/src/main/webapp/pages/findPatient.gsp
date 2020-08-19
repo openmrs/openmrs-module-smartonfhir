@@ -14,7 +14,6 @@
     jq(function() {
         jq('#patient-search').focus();
     });
-
 </script>
 
 <h2>

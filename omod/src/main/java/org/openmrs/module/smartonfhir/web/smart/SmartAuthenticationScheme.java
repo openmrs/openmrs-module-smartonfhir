@@ -10,6 +10,7 @@
 package org.openmrs.module.smartonfhir.web.smart;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 import org.openmrs.User;
 import org.openmrs.api.context.Authenticated;
 import org.openmrs.api.context.AuthenticationScheme;
@@ -54,11 +55,14 @@ public class SmartAuthenticationScheme implements AuthenticationScheme {
 		}
 		
 		User user = null;
-		try {
-			user = dao.getUserByUserName(credentials.getClientName());
-		}
-		catch (Exception ignored) {
-			
+		String username = credentials.getClientName();
+		if (StringUtils.isNotBlank(username)) {
+			try {
+				user = dao.getUserByUserName(username);
+			}
+			catch (Exception ignored) {
+				
+			}
 		}
 		
 		if (user == null) {

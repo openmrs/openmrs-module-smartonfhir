@@ -27,7 +27,7 @@
 	<!-- <updateURL>https://modules.openmrs.org/modules/download/@MODULE_ID@/update.rdf</updateURL> -->
 	<!-- /Base Module Properties -->
 
-	<require_version>2.3.0</require_version>
+	<require_version>${openmrsPlatformVersion}</require_version>
 
 	<aware_of_modules>
 		<aware_of_module>org.openmrs.module.legacyui</aware_of_module>
@@ -64,18 +64,6 @@
 		<url-pattern>/ms/fhir2R3Servlet/*</url-pattern>
 	</filter-mapping>
 
-	<!--filter for adding CORS support-->
-	<!-- custom filter available in org.openmrs.module.oauth2.web.util-->
-	<filter>
-		<filter-name>CorsFilter</filter-name>
-		<filter-class>org.openmrs.module.smartonfhir.web.filter.CORSFilter</filter-class>
-	</filter>
-
-	<filter-mapping>
-		<filter-name>CorsFilter</filter-name>
-		<url-pattern>/*</url-pattern>
-	</filter-mapping>
-
 		<filter>
 			<filter-name>authenticationByPassFilter</filter-name>
 			<filter-class>org.openmrs.module.smartonfhir.web.filter.AuthenticationByPassFilter</filter-class>
@@ -92,6 +80,7 @@
 	</filter>
 	<filter-mapping>
 		<filter-name>smartForwardingFilter</filter-name>
+		<url-pattern>/ws/fhir2
 		<url-pattern>/ws/fhir2/*</url-pattern>
 	</filter-mapping>
 
