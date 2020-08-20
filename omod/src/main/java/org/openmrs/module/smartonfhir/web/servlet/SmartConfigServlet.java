@@ -13,10 +13,16 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.openmrs.module.smartonfhir.web.KeycloakConfig;
 import org.openmrs.module.smartonfhir.web.SmartConformance;
+import org.openmrs.util.OpenmrsUtil;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 public class SmartConfigServlet extends HttpServlet {
 	
@@ -24,17 +30,22 @@ public class SmartConfigServlet extends HttpServlet {
 	
 	private final SmartConformance smartConformance;
 	
-	public SmartConfigServlet() {
+	private KeycloakConfig keycloakConfig;
+	
+	public SmartConfigServlet(KeycloakConfig keycloakConfig) {
+		this.keycloakConfig = keycloakConfig;
 		smartConformance = new SmartConformance();
-		smartConformance.setAuthorizationEndpoint("http://localhost:8180/auth/realms/openmrs/protocol/openid-connect/auth");
-		smartConformance.setTokenEndpoint("http://localhost:8180/auth/realms/openmrs/protocol/openid-connect/token");
+		smartConformance.setAuthorizationEndpoint(
+		    keycloakConfig.getAuthServerUrl() + "realms/" + keycloakConfig.getRealm() + "/protocol/openid-connect/auth");
+		smartConformance.setTokenEndpoint(
+		    keycloakConfig.getAuthServerUrl() + "realms/" + keycloakConfig.getRealm() + "/protocol/openid-connect/token");
 		smartConformance.setTokenEndpointAuthMethodsSupported(new String[] { "client_secret_basic" });
 		// smartConformance.setRegistrationEndpoint("https://ehr.example.com/auth/register");
 		smartConformance.setScopesSupported(new String[] { "openid", "profile", "launch", "launch/patient", "patient/*.*" });
 		smartConformance.setResponseTypesSupported(new String[] { "code", "code id_token", "id_token", "refresh_token" });
 		// smartConformance.setManagementEndpoint("https://ehr.example.com/user/manage");
-		smartConformance.setIntrospectionEndpoint(
-		    "http://localhost:8180/auth/realms/openmrs/protocol/openid-connect/token/introspect");
+		smartConformance.setIntrospectionEndpoint(keycloakConfig.getAuthServerUrl() + "realms/" + keycloakConfig.getRealm()
+		        + "/protocol/openid-connect/token/introspect");
 		// smartConformance.setRevocationEndpoint("https://ehr.example.com/user/revoke");
 		smartConformance.setCapabilities(new String[] { "launch-standalone", "launch-ehr", "client-public",
 		        "client-confidential-symmetric", "context-ehr-patient", "sso-openid-connect" });
@@ -45,5 +56,19 @@ public class SmartConfigServlet extends HttpServlet {
 		res.setCharacterEncoding("UTF-8");
 		res.setStatus(200);
 		objectMapper.writerWithType(SmartConformance.class).writeValue(res.getWriter(), smartConformance);
+	}
+	
+	private KeycloakConfig getKeycloakConfig() throws IOException {
+		final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+		Resource resource = resolver.getResource(
+		    OpenmrsUtil.getDirectoryInApplicationDataDirectory("config") + File.separator + "smart-keycloak.json");
+		if (resource != null) {
+			resource = resolver.getResource("classpath:smart-keycloak.json");
+			InputStream secretKeyStream = resource.getInputStream();
+			
+			keycloakConfig = objectMapper.readValue(secretKeyStream, KeycloakConfig.class);
+		}
+		
+		return keycloakConfig;
 	}
 }
