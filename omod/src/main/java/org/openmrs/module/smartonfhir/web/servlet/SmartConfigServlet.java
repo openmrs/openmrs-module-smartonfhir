@@ -32,8 +32,7 @@ public class SmartConfigServlet extends HttpServlet {
 	
 	private KeycloakConfig keycloakConfig;
 	
-	public SmartConfigServlet(KeycloakConfig keycloakConfig) {
-		this.keycloakConfig = keycloakConfig;
+	public SmartConfigServlet() {
 		smartConformance = new SmartConformance();
 		smartConformance.setAuthorizationEndpoint(
 		    keycloakConfig.getAuthServerUrl() + "realms/" + keycloakConfig.getRealm() + "/protocol/openid-connect/auth");
@@ -66,6 +65,7 @@ public class SmartConfigServlet extends HttpServlet {
 			resource = resolver.getResource("classpath:smart-keycloak.json");
 			InputStream secretKeyStream = resource.getInputStream();
 			
+			keycloakConfig = new KeycloakConfig();
 			keycloakConfig = objectMapper.readValue(secretKeyStream, KeycloakConfig.class);
 		}
 		

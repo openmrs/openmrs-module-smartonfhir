@@ -50,10 +50,6 @@ public class AuthenticationByPassFilter implements Filter {
 	
 	private SmartSecretKey smartSecretKey;
 	
-	public AuthenticationByPassFilter(SmartSecretKey smartSecretKey) {
-		this.smartSecretKey = smartSecretKey;
-	}
-	
 	@Override
 	public void init(FilterConfig filterConfig) {
 		
@@ -141,6 +137,7 @@ public class AuthenticationByPassFilter implements Filter {
 			
 			InputStream secretKeyStream = resource.getInputStream();
 			
+			smartSecretKey = new SmartSecretKey();
 			smartSecretKey = objectMapper.readValue(secretKeyStream, SmartSecretKey.class);
 		}
 		
