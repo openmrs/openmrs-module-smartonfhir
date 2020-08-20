@@ -80,7 +80,7 @@
 	</filter>
 	<filter-mapping>
 		<filter-name>smartForwardingFilter</filter-name>
-		<url-pattern>/ws/fhir2
+		<url-pattern>/ws/fhir2</url-pattern>
 		<url-pattern>/ws/fhir2/*</url-pattern>
 	</filter-mapping>
 
