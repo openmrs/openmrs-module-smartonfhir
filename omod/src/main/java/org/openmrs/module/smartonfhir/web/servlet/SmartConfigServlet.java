@@ -9,6 +9,7 @@
  */
 package org.openmrs.module.smartonfhir.web.servlet;
 
+import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -28,24 +29,29 @@ public class SmartConfigServlet extends HttpServlet {
 	
 	private static final ObjectMapper objectMapper = new ObjectMapper();
 	
-	private final SmartConformance smartConformance;
+	private SmartConformance smartConformance;
 	
 	private KeycloakConfig keycloakConfig;
 	
-	public SmartConfigServlet() {
+	@Override
+	public void init() throws ServletException {
+		try {
+			this.keycloakConfig = getKeycloakConfig();
+		}
+		catch (IOException e) {
+			throw new ServletException("Error creating SmartConfigServlet", e);
+		}
+		
 		smartConformance = new SmartConformance();
 		smartConformance.setAuthorizationEndpoint(
 		    keycloakConfig.getAuthServerUrl() + "realms/" + keycloakConfig.getRealm() + "/protocol/openid-connect/auth");
 		smartConformance.setTokenEndpoint(
 		    keycloakConfig.getAuthServerUrl() + "realms/" + keycloakConfig.getRealm() + "/protocol/openid-connect/token");
 		smartConformance.setTokenEndpointAuthMethodsSupported(new String[] { "client_secret_basic" });
-		// smartConformance.setRegistrationEndpoint("https://ehr.example.com/auth/register");
 		smartConformance.setScopesSupported(new String[] { "openid", "profile", "launch", "launch/patient", "patient/*.*" });
 		smartConformance.setResponseTypesSupported(new String[] { "code", "code id_token", "id_token", "refresh_token" });
-		// smartConformance.setManagementEndpoint("https://ehr.example.com/user/manage");
 		smartConformance.setIntrospectionEndpoint(keycloakConfig.getAuthServerUrl() + "realms/" + keycloakConfig.getRealm()
 		        + "/protocol/openid-connect/token/introspect");
-		// smartConformance.setRevocationEndpoint("https://ehr.example.com/user/revoke");
 		smartConformance.setCapabilities(new String[] { "launch-standalone", "launch-ehr", "client-public",
 		        "client-confidential-symmetric", "context-ehr-patient", "sso-openid-connect" });
 	}

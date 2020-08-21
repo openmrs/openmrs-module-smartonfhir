@@ -15,11 +15,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
+import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.util.Base64;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.keycloak.crypto.Algorithm;
 import org.keycloak.crypto.KeyWrapper;
 import org.keycloak.crypto.MacSignatureSignerContext;
@@ -27,11 +30,17 @@ import org.keycloak.crypto.SignatureSignerContext;
 import org.keycloak.jose.jws.JWSBuilder;
 import org.keycloak.representations.JsonWebToken;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.smartonfhir.web.SmartSecretKey;
 import org.openmrs.module.smartonfhir.web.filter.AuthenticationByPassFilter;
+import org.openmrs.util.OpenmrsUtil;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 public class SmartPatientSelected extends HttpServlet {
 	
-	private static final String SECRET = "aSqzP4reFgWR4j94BDT1r+81QYp/NYbY9SBwXtqV1ko=";
+	private static final ObjectMapper objectMapper = new ObjectMapper();
+	
+	private SmartSecretKey smartSecretKey;
 	
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
 		String token = req.getParameter("token");
@@ -45,7 +54,7 @@ public class SmartPatientSelected extends HttpServlet {
 		JsonWebToken tokenSentBack = new JsonWebToken();
 		tokenSentBack.setOtherClaims("patient", patientId);
 		
-		SecretKeySpec hmacSecretKeySpec = new SecretKeySpec(Base64.getDecoder().decode(SECRET), "HmacSHA256");
+		SecretKeySpec hmacSecretKeySpec = new SecretKeySpec(Base64.getDecoder().decode(getSecretKey()), "HmacSHA256");
 		KeyWrapper keyWrapper = new KeyWrapper();
 		keyWrapper.setAlgorithm(Algorithm.HS256);
 		keyWrapper.setSecretKey(hmacSecretKeySpec);
@@ -68,5 +77,21 @@ public class SmartPatientSelected extends HttpServlet {
 			}
 			Context.logout();
 		}
+	}
+	
+	private String getSecretKey() throws IOException {
+		final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
+		Resource resource = resolver.getResource(
+		    OpenmrsUtil.getDirectoryInApplicationDataDirectory("config") + File.separator + "smart-secret-key.json");
+		if (resource != null) {
+			resource = resolver.getResource("classpath:smart-secret-key.json");
+			
+			InputStream secretKeyStream = resource.getInputStream();
+			
+			smartSecretKey = new SmartSecretKey();
+			smartSecretKey = objectMapper.readValue(secretKeyStream, SmartSecretKey.class);
+		}
+		
+		return smartSecretKey.getSmartSharedSecretKey();
 	}
 }
