@@ -17,15 +17,21 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 import org.keycloak.common.util.Base64;
 import org.keycloak.jose.jws.JWSInput;
 import org.keycloak.jose.jws.JWSInputException;
@@ -44,15 +50,29 @@ public class AuthenticationByPassFilter implements Filter {
 	
 	public static final String SMART_AUTH_BYPASS = "SMART_AUTH_BYPASS";
 	
+	private static final String VALID_URLS_PARAM = "validUrls";
+	
 	private static final Pattern KEY_PARAM = Pattern.compile("^key=([^&]*)(?:&|$)");
 	
 	private static final ObjectMapper objectMapper = new ObjectMapper();
 	
 	private SmartSecretKey smartSecretKey;
 	
+	private List<String> validUrls = new ArrayList<>(0);
+	
 	@Override
 	public void init(FilterConfig filterConfig) {
-		
+		String validUrlsParam = filterConfig.getInitParameter(VALID_URLS_PARAM);
+		if (StringUtils.isNotBlank(validUrlsParam)) {
+			validUrls = Arrays.stream(validUrlsParam.split(",")).filter(org.apache.commons.lang3.StringUtils::isNotBlank)
+			        .map(it -> {
+				        if (it.startsWith("/") || it.equals("*")) {
+					        return it;
+				        }
+				        
+				        return "/" + it;
+			        }).distinct().collect(Collectors.toList());
+		}
 	}
 	
 	@Override
@@ -63,6 +83,37 @@ public class AuthenticationByPassFilter implements Filter {
 		
 		if (request.getRequestedSessionId() != null && !request.isRequestedSessionIdValid()) {
 			Context.logout();
+		}
+		
+		String pathInfo = request.getRequestURI();
+		
+		boolean isValidRequest = false;
+		if (pathInfo != null) {
+			final String thePathInfo = pathInfo.replaceFirst(request.getContextPath(), "");
+			isValidRequest = validUrls.stream().anyMatch(url -> {
+				if (url.endsWith("*")) {
+					if (url.length() < 3) {
+						return true;
+					} else {
+						String urlStart = url.substring(0, url.length() - 2);
+						return thePathInfo.startsWith(urlStart);
+					}
+				}
+				
+				return url.equals(thePathInfo);
+			});
+		}
+		
+		if (!isValidRequest) {
+			HttpSession session = request.getSession(false);
+			if (session != null && session.getAttribute(SMART_AUTH_BYPASS) != null) {
+				session.invalidate();
+				Context.logout();
+				request.getSession();
+			}
+			
+			filterChain.doFilter(request, response);
+			return;
 		}
 		
 		if (!Context.isAuthenticated()) {
@@ -79,6 +130,13 @@ public class AuthenticationByPassFilter implements Filter {
 						try {
 							JWSInput jwsInput = new JWSInput(key);
 							JsonWebToken webToken = jwsInput.readJsonContent(JsonWebToken.class);
+							
+							if (!webToken.isActive()) {
+								log.error("Token has expired");
+								response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+								return;
+							}
+							
 							userToken = (String) webToken.getOtherClaims().get("user");
 						}
 						catch (JWSInputException e) {
@@ -113,7 +171,8 @@ public class AuthenticationByPassFilter implements Filter {
 						
 						try {
 							Context.authenticate(new SmartTokenCredentials(username));
-							request.setAttribute(SMART_AUTH_BYPASS, true);
+							Context.getUserContext().setLocation(Context.getLocationService().getDefaultLocation());
+							request.getSession().setAttribute(SMART_AUTH_BYPASS, true);
 						}
 						catch (ContextAuthenticationException e) {
 							log.error("Error while logging in as user {}", username, e);

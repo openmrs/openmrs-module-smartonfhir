@@ -13,25 +13,24 @@ import javax.crypto.spec.SecretKeySpec;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.keycloak.crypto.Algorithm;
+import org.keycloak.crypto.JavaAlgorithm;
 import org.keycloak.crypto.KeyWrapper;
 import org.keycloak.crypto.MacSignatureSignerContext;
 import org.keycloak.crypto.SignatureSignerContext;
 import org.keycloak.jose.jws.JWSBuilder;
 import org.keycloak.representations.JsonWebToken;
-import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.web.SmartSecretKey;
-import org.openmrs.module.smartonfhir.web.filter.AuthenticationByPassFilter;
 import org.openmrs.util.OpenmrsUtil;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
@@ -54,29 +53,17 @@ public class SmartPatientSelected extends HttpServlet {
 		JsonWebToken tokenSentBack = new JsonWebToken();
 		tokenSentBack.setOtherClaims("patient", patientId);
 		
-		SecretKeySpec hmacSecretKeySpec = new SecretKeySpec(Base64.getDecoder().decode(getSecretKey()), "HmacSHA256");
+		SecretKeySpec hmacSecretKeySpec = new SecretKeySpec(Base64.getDecoder().decode(getSecretKey()), JavaAlgorithm.HS256);
 		KeyWrapper keyWrapper = new KeyWrapper();
 		keyWrapper.setAlgorithm(Algorithm.HS256);
 		keyWrapper.setSecretKey(hmacSecretKeySpec);
 		SignatureSignerContext signer = new MacSignatureSignerContext(keyWrapper);
 		
 		String appToken = new JWSBuilder().jsonContent(tokenSentBack).sign(signer);
-		String encodedToken = URLEncoder.encode(appToken, "UTF-8");
+		String encodedToken = URLEncoder.encode(appToken, StandardCharsets.UTF_8.name());
 		
-		String decodedUrl = URLDecoder.decode(token, "UTF-8");
-		decodedUrl = decodedUrl + "&client_id=" + req.getParameter("client_id") + "&tab_id=" + req.getParameter("tab_id")
-		        + "&execution=" + req.getParameter("execution") + "&app-token=" + req.getParameter("app-token");
-		
+		String decodedUrl = URLDecoder.decode(token, StandardCharsets.UTF_8.name());
 		res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", encodedToken));
-		
-		Boolean usedBypassAuth = (Boolean) req.getAttribute(AuthenticationByPassFilter.SMART_AUTH_BYPASS);
-		if (usedBypassAuth != null && usedBypassAuth) {
-			HttpSession session = req.getSession(false);
-			if (session != null) {
-				session.invalidate();
-			}
-			Context.logout();
-		}
 	}
 	
 	private String getSecretKey() throws IOException {

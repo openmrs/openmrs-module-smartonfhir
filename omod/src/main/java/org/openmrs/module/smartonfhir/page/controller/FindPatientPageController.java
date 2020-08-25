@@ -9,6 +9,10 @@
  */
 package org.openmrs.module.smartonfhir.page.controller;
 
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+
 import org.openmrs.module.appframework.domain.AppDescriptor;
 import org.openmrs.module.appui.UiSessionContext;
 import org.openmrs.module.coreapps.helper.BreadcrumbHelper;
@@ -20,8 +24,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class FindPatientPageController {
 	
 	public void get(PageModel model, @RequestParam("app") AppDescriptor app, @RequestParam("token") String token,
-	        UiSessionContext sessionContext, UiUtils ui) {
-		model.addAttribute("afterSelectedUrl", app.getConfig().get("afterSelectedUrl").getTextValue() + "&token=" + token);
+	        UiSessionContext sessionContext, UiUtils ui) throws UnsupportedEncodingException {
+		model.addAttribute("afterSelectedUrl", app.getConfig().get("afterSelectedUrl").getTextValue() + "&token="
+		        + URLEncoder.encode(token, StandardCharsets.UTF_8.name()));
 		model.addAttribute("heading", app.getConfig().get("heading").getTextValue());
 		model.addAttribute("label", app.getConfig().get("label").getTextValue());
 		model.addAttribute("showLastViewedPatients", app.getConfig().get("showLastViewedPatients").getBooleanValue());
