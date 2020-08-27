@@ -27,7 +27,7 @@
 	<!-- <updateURL>https://modules.openmrs.org/modules/download/@MODULE_ID@/update.rdf</updateURL> -->
 	<!-- /Base Module Properties -->
 
-	<require_version>2.3.0</require_version>
+	<require_version>${openmrsPlatformVersion}</require_version>
 
 	<aware_of_modules>
 		<aware_of_module>org.openmrs.module.legacyui</aware_of_module>
@@ -51,6 +51,16 @@
 	</servlet>
 
 	<filter>
+		<filter-name>smartCORSFilter</filter-name>
+		<filter-class>org.openmrs.module.smartonfhir.web.filter.CORSFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>smartCORSFilter</filter-name>
+		<url-pattern>/ws/fhir2</url-pattern>
+		<url-pattern>/ws/fhir2/*</url-pattern>
+	</filter-mapping>
+
+	<filter>
 		<filter-name>smartAuthenticationFilter</filter-name>
 		<filter-class>org.openmrs.module.smartonfhir.web.filter.SmartAuthenticationFilter</filter-class>
 	</filter>
@@ -64,16 +74,18 @@
 		<url-pattern>/ms/fhir2R3Servlet/*</url-pattern>
 	</filter-mapping>
 
-	<!--filter for adding CORS support-->
-	<!-- custom filter available in org.openmrs.module.oauth2.web.util-->
 	<filter>
-		<filter-name>CorsFilter</filter-name>
-		<filter-class>org.openmrs.module.smartonfhir.web.filter.CORSFilter</filter-class>
+		<filter-name>authenticationByPassFilter</filter-name>
+		<filter-class>org.openmrs.module.smartonfhir.web.filter.AuthenticationByPassFilter</filter-class>
+		<init-param>
+			<!-- White-list of valid URLs; requesting any other URL will end the session -->
+			<param-name>validUrls</param-name>
+			<param-value>/smartonfhir/findPatient.page,/ms/smartPatientSelected,/appui/session/*,/ws/rest/v1/patient,/ms/uiframework/resource/*,/images/*</param-value>
+		</init-param>
 	</filter>
-
 	<filter-mapping>
-		<filter-name>CorsFilter</filter-name>
-		<url-pattern>/*</url-pattern>
+		<filter-name>authenticationByPassFilter</filter-name>
+		<url-pattern>*</url-pattern>
 	</filter-mapping>
 
 	<filter>
@@ -82,6 +94,7 @@
 	</filter>
 	<filter-mapping>
 		<filter-name>smartForwardingFilter</filter-name>
+		<url-pattern>/ws/fhir2</url-pattern>
 		<url-pattern>/ws/fhir2/*</url-pattern>
 	</filter-mapping>
 
@@ -100,6 +113,5 @@
 		<file>messages_es.properties</file>
 	</messages>
 	<!-- /Internationalization -->
-
 </module>
 
