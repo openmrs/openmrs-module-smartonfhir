@@ -49,7 +49,6 @@ public class SmartPatientSelected extends HttpServlet {
 			res.sendError(HttpServletResponse.SC_BAD_REQUEST);
 			return;
 		}
-
 		JsonWebToken tokenSentBack = new JsonWebToken();
 		tokenSentBack.setOtherClaims("patient", patientId);
 		
