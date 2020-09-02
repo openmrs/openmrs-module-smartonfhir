@@ -9,7 +9,7 @@
         "extensionPointId": "patientDashboard.overallActions",
         "type": "link",
         "label": "coreapps.findPatient.app.label",
-        "url": "ms/smartEhrLaunchServlet?url=http%3A%2F%2F127.0.0.1%3A9090%2Flaunch-standalone.html%3Fiss%3Dhttp%253A%252F%252Flocalhost%253A8080%252Fopenmrs%252Fws%252Ffhir2%252FR4%2526launch%253D{{patient.uuid}}",
+        "url": "ms/smartEhrLaunchServlet?app=smart_client&patientId={{patient.uuid}}",
         "icon": "icon-search",
         "requiredPrivilege": "App: coreapps.findPatient"
       }
