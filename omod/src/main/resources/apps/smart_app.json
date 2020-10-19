@@ -1,0 +1,24 @@
+[
+  {
+    "id": "coreapps.smartAppManagement",
+    "description": "SMART Apps",
+    "extensionPoints": [
+      {
+        "id": "smartAppManagement.apps",
+        "description": "Apps on the SMART App Management Home Page"
+      }
+    ],
+    "extensions": [
+      {
+        "id": "coreapps.smartAppManagement.homepageLink",
+        "extensionPointId": "org.openmrs.referenceapplication.homepageLink",
+        "type": "link",
+        "label": "SMART Apps",
+        "url": "coreapps/datamanagement/dataManagement.page",
+        "icon": "icon-hdd",
+        "order": 89,
+        "requiredPrivilege": "App: coreapps.dataManagement"
+      }
+    ]
+  }
+]

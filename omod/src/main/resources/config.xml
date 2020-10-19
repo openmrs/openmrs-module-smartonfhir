@@ -50,6 +50,11 @@
 		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartPatientSelected</servlet-class>
 	</servlet>
 
+	<servlet>
+		<servlet-name>smartEhrLaunchServlet</servlet-name>
+		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartEhrLaunchServlet</servlet-class>
+	</servlet>
+
 	<filter>
 		<filter-name>smartCORSFilter</filter-name>
 		<filter-class>org.openmrs.module.smartonfhir.web.filter.CORSFilter</filter-class>
@@ -96,6 +101,8 @@
 		<filter-name>smartForwardingFilter</filter-name>
 		<url-pattern>/ws/fhir2</url-pattern>
 		<url-pattern>/ws/fhir2/*</url-pattern>
+		<url-pattern>/ms/smartEhrLaunchServlet</url-pattern>
+		<url-pattern>/ms/smartEhrLaunchServlet/*</url-pattern>
 	</filter-mapping>
 
 	<!-- Internationalization -->

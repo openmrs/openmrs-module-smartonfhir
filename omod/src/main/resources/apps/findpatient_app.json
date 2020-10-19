@@ -1,0 +1,18 @@
+[
+  {
+    "id": "coreapps.smartRedirect",
+    "description": "Basic patient search, by ID or Name (using OpenMRS's standard patient search)",
+    "order": 2,
+    "extensions": [
+      {
+        "id": "coreapps.activeVisitsHomepageLink",
+        "extensionPointId": "patientDashboard.overallActions",
+        "type": "link",
+        "label": "coreapps.findPatient.app.label",
+        "url": "ms/smartEhrLaunchServlet?app=smart_client&patientId={{patient.uuid}}",
+        "icon": "icon-search",
+        "requiredPrivilege": "App: coreapps.findPatient"
+      }
+    ]
+  }
+]
