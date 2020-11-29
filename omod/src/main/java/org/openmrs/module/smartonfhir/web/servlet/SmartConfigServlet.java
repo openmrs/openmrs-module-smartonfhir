@@ -15,16 +15,19 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.InputStream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.openmrs.module.smartonfhir.web.KeycloakConfig;
 import org.openmrs.module.smartonfhir.web.SmartConformance;
 import org.openmrs.util.OpenmrsUtil;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
+@Slf4j
 public class SmartConfigServlet extends HttpServlet {
 	
 	private static final ObjectMapper objectMapper = new ObjectMapper();
@@ -60,19 +63,31 @@ public class SmartConfigServlet extends HttpServlet {
 		res.setContentType("application/json");
 		res.setCharacterEncoding("UTF-8");
 		res.setStatus(200);
-		objectMapper.writerWithType(SmartConformance.class).writeValue(res.getWriter(), smartConformance);
+		objectMapper.writerFor(SmartConformance.class).writeValue(res.getWriter(), smartConformance);
 	}
 	
 	private KeycloakConfig getKeycloakConfig() throws IOException {
 		final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-		Resource resource = resolver.getResource(
-		    OpenmrsUtil.getDirectoryInApplicationDataDirectory("config") + File.separator + "smart-keycloak.json");
-		if (resource != null) {
-			resource = resolver.getResource("classpath:smart-keycloak.json");
-			InputStream secretKeyStream = resource.getInputStream();
-			
-			keycloakConfig = new KeycloakConfig();
-			keycloakConfig = objectMapper.readValue(secretKeyStream, KeycloakConfig.class);
+		Resource resource = resolver
+		        .getResource(OpenmrsUtil.getDirectoryInApplicationDataDirectory("config").getAbsolutePath() + File.separator
+		                + "smart-keycloak.json");
+		
+		if (resource != null && resource.isReadable()) {
+			try (InputStream keycloakConfigStream = resource.getInputStream()) {
+				keycloakConfig = objectMapper.readValue(keycloakConfigStream, KeycloakConfig.class);
+				return keycloakConfig;
+			}
+			catch (FileNotFoundException e) {
+				log.error("Could not load file [{}]", resource.getFilename(), e);
+			}
+		}
+		
+		resource = resolver.getResource("classpath:smart-keycloak.json");
+		
+		if (resource != null && resource.isReadable()) {
+			try (InputStream keycloakConfigStream = resource.getInputStream()) {
+				keycloakConfig = objectMapper.readValue(keycloakConfigStream, KeycloakConfig.class);
+			}
 		}
 		
 		return keycloakConfig;

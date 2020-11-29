@@ -14,15 +14,11 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Base64;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.keycloak.crypto.Algorithm;
 import org.keycloak.crypto.JavaAlgorithm;
 import org.keycloak.crypto.KeyWrapper;
@@ -30,16 +26,9 @@ import org.keycloak.crypto.MacSignatureSignerContext;
 import org.keycloak.crypto.SignatureSignerContext;
 import org.keycloak.jose.jws.JWSBuilder;
 import org.keycloak.representations.JsonWebToken;
-import org.openmrs.module.smartonfhir.web.SmartSecretKey;
-import org.openmrs.util.OpenmrsUtil;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
+import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
 
 public class SmartPatientSelected extends HttpServlet {
-	
-	private static final ObjectMapper objectMapper = new ObjectMapper();
-	
-	private SmartSecretKey smartSecretKey;
 	
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
 		String token = req.getParameter("token");
@@ -52,7 +41,7 @@ public class SmartPatientSelected extends HttpServlet {
 		JsonWebToken tokenSentBack = new JsonWebToken();
 		tokenSentBack.setOtherClaims("patient", patientId);
 		
-		SecretKeySpec hmacSecretKeySpec = new SecretKeySpec(Base64.getDecoder().decode(getSecretKey()), JavaAlgorithm.HS256);
+		SecretKeySpec hmacSecretKeySpec = new SecretKeySpec(SmartSecretKeyHolder.getSecretKey(), JavaAlgorithm.HS256);
 		KeyWrapper keyWrapper = new KeyWrapper();
 		keyWrapper.setAlgorithm(Algorithm.HS256);
 		keyWrapper.setSecretKey(hmacSecretKeySpec);
@@ -63,21 +52,5 @@ public class SmartPatientSelected extends HttpServlet {
 		
 		String decodedUrl = URLDecoder.decode(token, StandardCharsets.UTF_8.name());
 		res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", encodedToken));
-	}
-	
-	private String getSecretKey() throws IOException {
-		final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-		Resource resource = resolver.getResource(
-		    OpenmrsUtil.getDirectoryInApplicationDataDirectory("config") + File.separator + "smart-secret-key.json");
-		if (resource != null) {
-			resource = resolver.getResource("classpath:smart-secret-key.json");
-			
-			InputStream secretKeyStream = resource.getInputStream();
-			
-			smartSecretKey = new SmartSecretKey();
-			smartSecretKey = objectMapper.readValue(secretKeyStream, SmartSecretKey.class);
-		}
-		
-		return smartSecretKey.getSmartSharedSecretKey();
 	}
 }
