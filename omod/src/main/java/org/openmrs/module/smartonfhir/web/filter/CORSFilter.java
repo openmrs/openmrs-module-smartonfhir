@@ -23,10 +23,10 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * To use this declare filter mapping in config.xml
  */
 public class CORSFilter extends OncePerRequestFilter {
-
+	
 	@Override
 	protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-			throws ServletException, IOException {
+	        throws ServletException, IOException {
 		// CORS "pre-flight" request
 		response.addHeader("Access-Control-Allow-Credentials", "true");
 		response.addHeader("Access-Control-Allow-Methods", " OPTIONS");
@@ -34,12 +34,12 @@ public class CORSFilter extends OncePerRequestFilter {
 		response.addHeader("Access-Control-Allow-Headers", "Content-Type");
 		response.addHeader("Access-Control-Allow-Origin", "*");
 		response.addHeader("Access-Control-Max-Age", "1");
-
+		
 		if ("OPTIONS".equalsIgnoreCase(request.getMethod())) {
 			response.setStatus(HttpServletResponse.SC_OK);
 			return;
 		}
-
+		
 		filterChain.doFilter(request, response);
 	}
 }
