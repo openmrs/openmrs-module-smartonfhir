@@ -29,7 +29,7 @@ public class CORSFilter extends OncePerRequestFilter {
 	        throws ServletException, IOException {
 		// CORS "pre-flight" request
 		response.addHeader("Access-Control-Allow-Credentials", "true");
-		response.addHeader("Access-Control-Allow-Methods", " OPTIONS");
+		response.addHeader("Access-Control-Allow-Methods", "OPTIONS");
 		response.addHeader("Access-Control-Allow-Headers", "Authorization");
 		response.addHeader("Access-Control-Allow-Headers", "Content-Type");
 		response.addHeader("Access-Control-Allow-Origin", "*");
