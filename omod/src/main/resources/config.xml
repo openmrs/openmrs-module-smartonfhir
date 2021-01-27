@@ -55,6 +55,11 @@
 		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartEhrLaunchServlet</servlet-class>
 	</servlet>
 
+	<servlet>
+		<servlet-name>smartAppSelectorServlet</servlet-name>
+		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartAppSelectorServlet</servlet-class>
+	</servlet>
+
 	<filter>
 		<filter-name>smartCORSFilter</filter-name>
 		<filter-class>org.openmrs.module.smartonfhir.web.filter.CORSFilter</filter-class>
@@ -103,6 +108,8 @@
 		<url-pattern>/ws/fhir2/*</url-pattern>
 		<url-pattern>/ms/smartEhrLaunchServlet</url-pattern>
 		<url-pattern>/ms/smartEhrLaunchServlet/*</url-pattern>
+		<url-pattern>/ms/smartAppSelectorServlet/</url-pattern>
+		<url-pattern>/ms/smartAppSelectorServlet/*</url-pattern>
 	</filter-mapping>
 
 	<!-- Internationalization -->
@@ -120,5 +127,15 @@
 		<file>messages_es.properties</file>
 	</messages>
 	<!-- /Internationalization -->
+
+	<privilege>
+		<name>App: smartonfhir.smartapps</name>
+		<description>Able to access smart apps</description>
+	</privilege>
+
+	<privilege>
+		<name>App: smartonfhir.demoappHomepageLink</name>
+		<description>Demo smart app</description>
+	</privilege>
 </module>
 

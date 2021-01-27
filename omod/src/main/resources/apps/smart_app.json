@@ -1,6 +1,6 @@
 [
   {
-    "id": "coreapps.smartAppManagement",
+    "id": "smartonfhir.smartAppManagement",
     "description": "SMART Apps",
     "extensionPoints": [
       {
@@ -10,14 +10,14 @@
     ],
     "extensions": [
       {
-        "id": "coreapps.smartAppManagement.homepageLink",
+        "id": "smartonfhir.smartAppManagement.homepageLink",
         "extensionPointId": "org.openmrs.referenceapplication.homepageLink",
         "type": "link",
         "label": "SMART Apps",
-        "url": "coreapps/datamanagement/dataManagement.page",
+        "url": "smartonfhir/smartApps.page",
         "icon": "icon-hdd",
         "order": 89,
-        "requiredPrivilege": "App: coreapps.dataManagement"
+        "requiredPrivilege": "App: smartonfhir.smartapps"
       }
     ]
   }

@@ -1,0 +1,18 @@
+[
+  {
+    "id": "smartapps.demoapp",
+    "description": "First smart app",
+    "order": 1,
+    "extensions": [
+      {
+        "id": "smartapps.demoappHomepageLink",
+        "extensionPointId": "smartAppManagement.apps",
+        "type": "link",
+        "label": "Demo App",
+        "url": "ms/smartAppSelectorServlet?smartApp=http://127.0.0.1:9090/launch-standalone.html",
+        "icon": "icon-hdd",
+        "requiredPrivilege": "App: smartonfhir.demoappHomepageLink"
+      }
+    ]
+  }
+]
