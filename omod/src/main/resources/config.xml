@@ -137,5 +137,10 @@
 		<name>App: smartonfhir.demoappHomepageLink</name>
 		<description>Demo smart app</description>
 	</privilege>
+
+	<privilege>
+		<name>App: smartonfhir:smartAppPatientChartLaunch</name>
+		<description>Demo SMART app launch inside patient chart</description>
+	</privilege>
 </module>
 
