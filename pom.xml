@@ -612,7 +612,7 @@
 		<lombokVersion>1.18.12</lombokVersion>
 		<openmrsPlatformVersion>2.3.0</openmrsPlatformVersion>
 		<openmrsPlatformToolsVersion>2.3.0</openmrsPlatformToolsVersion>
-		<keycloakVersion>10.0.1</keycloakVersion>
+		<keycloakVersion>12.0.0</keycloakVersion>
 		<uiframeworkVersion>3.15.0</uiframeworkVersion>
 		<appframeworkVersion>2.9</appframeworkVersion>
 		<appuiVersion>1.7</appuiVersion>
