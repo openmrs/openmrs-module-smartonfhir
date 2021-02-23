@@ -1,18 +1,13 @@
 [
   {
-    "id": "smartapps.smartPatientChartRedirect",
-    "description": "Smart App launch",
+    "id": "smartonfhir.search",
+    "description": "Basic patient search, by ID or Name (using OpenMRS's standard patient search)",
     "order": 2,
-    "extensions": [
-      {
-        "id": "smartapps.smartAppPatientChartLaunch",
-        "extensionPointId": "patientDashboard.overallActions",
-        "type": "link",
-        "label": "Demo SMART App",
-        "url": "ms/smartEhrLaunchServlet?app=smart_client&patientId={{patient.uuid}}",
-        "icon": "icon-hdd",
-        "requiredPrivilege": "App: smartonfhir:smartAppPatientChartLaunch"
-      }
-    ]
+    "config": {
+      "afterSelectedUrl": "/ms/smartPatientSelected?app=smart_client&patientId={{patientId}}",
+      "heading": "",
+      "label": "coreapps.findPatient.app.label",
+      "showLastViewedPatients": "true"
+    }
   }
 ]

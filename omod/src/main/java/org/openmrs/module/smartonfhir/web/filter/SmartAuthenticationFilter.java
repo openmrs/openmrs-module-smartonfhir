@@ -17,7 +17,6 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import java.io.File;
 import java.io.IOException;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -33,10 +32,9 @@ import org.keycloak.adapters.spi.KeycloakAccount;
 import org.openmrs.api.context.Authenticated;
 import org.openmrs.api.context.Context;
 import org.openmrs.api.context.ContextAuthenticationException;
+import org.openmrs.module.smartonfhir.util.KeycloakConfigHolder;
+import org.openmrs.module.smartonfhir.web.KeycloakConfig;
 import org.openmrs.module.smartonfhir.web.smart.SmartTokenCredentials;
-import org.openmrs.util.OpenmrsUtil;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 @Slf4j
 public class SmartAuthenticationFilter extends KeycloakOIDCFilter {
@@ -45,20 +43,13 @@ public class SmartAuthenticationFilter extends KeycloakOIDCFilter {
 	
 	@Override
 	public void init(FilterConfig filterConfig) {
-		final Resource keycloakConfig = getKeycloakConfig();
+		final KeycloakConfig keycloakConfig = KeycloakConfigHolder.getKeycloakConfig();
 		
 		if (keycloakConfig == null) {
 			log.error("Could not find Keycloak configuration file");
 			this.deploymentContext = new AdapterDeploymentContext(new KeycloakDeployment());
 		} else {
-			try {
-				this.deploymentContext = new AdapterDeploymentContext(
-				        KeycloakDeploymentBuilder.build(keycloakConfig.getInputStream()));
-			}
-			catch (IOException e) {
-				log.error("Error while trying to load Keycloak configuration", e);
-				this.deploymentContext = new AdapterDeploymentContext(new KeycloakDeployment());
-			}
+			this.deploymentContext = new AdapterDeploymentContext(KeycloakDeploymentBuilder.build(keycloakConfig));
 		}
 		
 		String skipPatternDefinition = filterConfig.getInitParameter(SKIP_PATTERN_PARAM);
@@ -125,16 +116,5 @@ public class SmartAuthenticationFilter extends KeycloakOIDCFilter {
 		}
 		
 		chain.doFilter(req, res);
-	}
-	
-	private Resource getKeycloakConfig() {
-		final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-		Resource resource = resolver.getResource(
-		    OpenmrsUtil.getDirectoryInApplicationDataDirectory("config") + File.separator + "smart-keycloak.json");
-		if (resource != null) {
-			resource = resolver.getResource("classpath:smart-keycloak.json");
-		}
-		
-		return resource;
 	}
 }
