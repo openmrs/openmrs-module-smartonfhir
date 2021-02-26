@@ -38,6 +38,11 @@ public class SmartForwardingFilter implements Filter {
 				return;
 			}
 			
+			if (request.getRequestURI().contains("/smartAccessConfirmation")) {
+				req.getRequestDispatcher("/ms/smartAccessConfirmation").forward(req, res);
+				return;
+			}
+			
 			if (request.getRequestURI().endsWith("/smartPatientSelected")) {
 				req.getRequestDispatcher("/ms/smartPatientSelected").forward(req, res);
 				return;
