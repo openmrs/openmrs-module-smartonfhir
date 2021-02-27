@@ -40,9 +40,11 @@ public class SmartAccessConfirmation extends HttpServlet {
 			return;
 		}
 		JsonWebToken tokenSentBack = new JsonWebToken();
+		String decodedUrl = URLDecoder.decode(token, StandardCharsets.UTF_8.name());
 		User user = Context.getAuthenticatedUser();
+		
 		if (user == null) {
-			res.sendError(HttpServletResponse.SC_UNAUTHORIZED);
+			res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", ""));
 			return;
 		}
 		
@@ -57,7 +59,6 @@ public class SmartAccessConfirmation extends HttpServlet {
 		String appToken = new JWSBuilder().jsonContent(tokenSentBack).sign(signer);
 		String encodedToken = URLEncoder.encode(appToken, StandardCharsets.UTF_8.name());
 		
-		String decodedUrl = URLDecoder.decode(token, StandardCharsets.UTF_8.name());
 		res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", encodedToken));
 		
 	}
