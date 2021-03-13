@@ -12,10 +12,13 @@ package org.openmrs.module.smartonfhir.web;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
+import org.keycloak.representations.adapters.config.AdapterConfig;
 
+@EqualsAndHashCode(callSuper = true)
 @Data
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
-public class KeycloakConfig {
+public class KeycloakConfig extends AdapterConfig {
 	
 	@JsonProperty(value = "realm", required = true)
 	private String realm;

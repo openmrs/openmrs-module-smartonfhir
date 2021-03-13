@@ -9,23 +9,17 @@
  */
 package org.openmrs.module.smartonfhir.web.servlet;
 
-import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.io.InputStream;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.openmrs.module.smartonfhir.util.KeycloakConfigHolder;
 import org.openmrs.module.smartonfhir.web.KeycloakConfig;
 import org.openmrs.module.smartonfhir.web.SmartConformance;
-import org.openmrs.util.OpenmrsUtil;
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
 @Slf4j
 public class SmartConfigServlet extends HttpServlet {
@@ -34,16 +28,9 @@ public class SmartConfigServlet extends HttpServlet {
 	
 	private SmartConformance smartConformance;
 	
-	private KeycloakConfig keycloakConfig;
-	
 	@Override
-	public void init() throws ServletException {
-		try {
-			this.keycloakConfig = getKeycloakConfig();
-		}
-		catch (IOException e) {
-			throw new ServletException("Error creating SmartConfigServlet", e);
-		}
+	public void init() {
+		final KeycloakConfig keycloakConfig = KeycloakConfigHolder.getKeycloakConfig();
 		
 		smartConformance = new SmartConformance();
 		smartConformance.setAuthorizationEndpoint(
@@ -64,32 +51,5 @@ public class SmartConfigServlet extends HttpServlet {
 		res.setCharacterEncoding("UTF-8");
 		res.setStatus(200);
 		objectMapper.writerFor(SmartConformance.class).writeValue(res.getWriter(), smartConformance);
-	}
-	
-	private KeycloakConfig getKeycloakConfig() throws IOException {
-		final PathMatchingResourcePatternResolver resolver = new PathMatchingResourcePatternResolver();
-		Resource resource = resolver
-		        .getResource(OpenmrsUtil.getDirectoryInApplicationDataDirectory("config").getAbsolutePath() + File.separator
-		                + "smart-keycloak.json");
-		
-		if (resource != null && resource.isReadable()) {
-			try (InputStream keycloakConfigStream = resource.getInputStream()) {
-				keycloakConfig = objectMapper.readValue(keycloakConfigStream, KeycloakConfig.class);
-				return keycloakConfig;
-			}
-			catch (FileNotFoundException e) {
-				log.error("Could not load file [{}]", resource.getFilename(), e);
-			}
-		}
-		
-		resource = resolver.getResource("classpath:smart-keycloak.json");
-		
-		if (resource != null && resource.isReadable()) {
-			try (InputStream keycloakConfigStream = resource.getInputStream()) {
-				keycloakConfig = objectMapper.readValue(keycloakConfigStream, KeycloakConfig.class);
-			}
-		}
-		
-		return keycloakConfig;
 	}
 }

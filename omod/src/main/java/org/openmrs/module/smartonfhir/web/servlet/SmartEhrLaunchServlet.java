@@ -23,7 +23,7 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		String patientId = req.getParameter("patientId");
-		String url = "http://127.0.0.1:9090/launch-standalone.html?iss=http://localhost:8080/openmrs/ws/fhir2/R4&launch="
+		String url = "http://localhost:9090/launch-standalone.html?iss=http://localhost:8080/openmrs/ws/fhir2/R4&launch="
 		        + patientId;
 		
 		if (StringUtils.isBlank(url)) {
