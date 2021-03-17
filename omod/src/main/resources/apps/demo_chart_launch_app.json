@@ -1,0 +1,18 @@
+[
+  {
+    "id": "smartapps.smartPatientChartRedirect",
+    "description": "Smart App EHR launch",
+    "order": 2,
+    "extensions": [
+      {
+        "id": "smartapps.smartAppPatientChartLaunch",
+        "extensionPointId": "patientDashboard.overallActions",
+        "type": "link",
+        "label": "Demo SMART App",
+        "url": "ms/smartEhrLaunchServlet?app=smart_client&patientId={{patient.uuid}}",
+        "icon": "icon-hdd",
+        "requiredPrivilege": "App: smartonfhir:smartAppPatientChartLaunch"
+      }
+    ]
+  }
+]
