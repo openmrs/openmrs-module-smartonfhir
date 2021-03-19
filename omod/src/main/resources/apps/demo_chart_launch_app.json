@@ -1,0 +1,21 @@
+[
+  {
+    "id": "smartapps.smartPatientChartRedirect",
+    "description": "Smart App EHR launch",
+    "order": 2,
+    "config" : {
+      "launchUrl" : "http://127.0.0.1:9090/launch-standalone.html"
+    },
+    "extensions": [
+      {
+        "id": "smartapps.smartAppPatientChartLaunch",
+        "extensionPointId": "patientDashboard.overallActions",
+        "type": "link",
+        "label": "Demo SMART App",
+        "url": "smartonfhir/smartAppsRedirect.page?app=smartapps.smartPatientChartRedirect&patientId={{patient.uuid}}",
+        "icon": "icon-hdd",
+        "requiredPrivilege": "App: smartonfhir:smartAppPatientChartLaunch"
+      }
+    ]
+  }
+]
