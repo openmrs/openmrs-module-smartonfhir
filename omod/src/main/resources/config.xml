@@ -95,7 +95,7 @@
 		<init-param>
 			<!-- White-list of valid URLs; requesting any other URL will end the session -->
 			<param-name>validUrls</param-name>
-			<param-value>/smartonfhir/findPatient.page,/smartonfhir/smartAccessConfirmation,/ms/smartPatientSelected,/appui/session/*,/ws/rest/v1/patient,/ms/uiframework/resource/*,/images/*</param-value>
+			<param-value>/smartonfhir/findPatient.page,/smartonfhir/smartAccessConfirmation,/ms/smartAccessConfirmation,/ms/smartPatientSelected,/appui/session/*,/ws/rest/v1/patient,/ms/uiframework/resource/*,/images/*</param-value>
 		</init-param>
 	</filter>
 	<filter-mapping>
@@ -115,6 +115,8 @@
 		<url-pattern>/ms/smartEhrLaunchServlet/*</url-pattern>
 		<url-pattern>/ms/smartAppSelectorServlet/</url-pattern>
 		<url-pattern>/ms/smartAppSelectorServlet/*</url-pattern>
+		<url-pattern>/ms/smartAccessConfirmation</url-pattern>
+		<url-pattern>/ms/smartAccessConfirmation/*</url-pattern>
 		<url-pattern>/smartonfhir/smartAccessConfirmation</url-pattern>
 		<url-pattern>/smartonfhir/smartAccessConfirmation/*</url-pattern>
 	</filter-mapping>
