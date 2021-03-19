@@ -22,7 +22,7 @@ public class SmartAppSelectorServlet extends HttpServlet {
 	
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-		String smartAppLaunchURL = req.getParameter("smartApp");
+		String smartAppLaunchURL = req.getParameter("launchUrl");
 		String url = smartAppLaunchURL + "?iss=http://localhost:8080/openmrs/ws/fhir2/R4&launch=";
 		
 		if (StringUtils.isBlank(url)) {
