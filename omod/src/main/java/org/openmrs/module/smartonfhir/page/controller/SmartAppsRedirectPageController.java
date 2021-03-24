@@ -16,13 +16,19 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class SmartAppsRedirectPageController {
 	
 	public Redirect get(@RequestParam(value = "app") AppDescriptor app,
-	        @RequestParam(required = false, value = "patientId") String patientId) {
+	        @RequestParam(required = false, value = "patientId") String patientId,
+	        @RequestParam(required = false, value = "visitId") String visitId) {
 		
 		String launchUrl = app.getConfig().get("launchUrl").getTextValue();
 		
-		// For EHR launch
-		if (patientId != null) {
+		// EHR launch for Patient Context
+		if (!patientId.isEmpty()) {
 			return new Redirect("ms/smartEhrLaunchServlet?launchUrl=" + launchUrl + "&patientId=" + patientId);
+		}
+		
+		//EHR launch for Visit Context
+		if (!visitId.isEmpty()) {
+			return new Redirect("ms/smartVisitEhrLaunchServlet?launchUrl=" + launchUrl + "&visitId=" + visitId);
 		}
 		
 		return new Redirect("ms/smartAppsSelectorServlet?launchUrl=" + launchUrl);

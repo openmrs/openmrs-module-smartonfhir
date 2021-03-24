@@ -1,0 +1,20 @@
+[
+  {
+    "id": "smartapps.smartVisitRedirect",
+    "description": "Smart App Visit EHR launch",
+    "order": 2,
+    "config" : {
+      "launchUrl" : "http://127.0.0.1:9090/launch-standalone.html"
+    },
+    "extensions": [
+      {
+        "id": "smartapps.smartAppVisitLaunch",
+        "extensionPointId": "patientDashboard.visitActions",
+        "type": "link",
+        "label": "SMART App",
+        "url": "smartonfhir/smartAppsRedirect.page?app=smartapps.smartVisitRedirect&visitId={{visit.uuid}}",
+        "icon": "icon-hdd"
+      }
+    ]
+  }
+]
