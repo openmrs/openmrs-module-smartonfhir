@@ -21,17 +21,17 @@ public class SmartAppsRedirectPageController {
 		
 		String launchUrl = app.getConfig().get("launchUrl").getTextValue();
 		
+		//EHR launch for Visit Context
+		if (!visitId.isEmpty()) {
+			return new Redirect("ms/smartVisitEhrLaunchServlet?launchUrl=" + launchUrl + "&visitId=" + visitId
+			        + "&patientId=" + patientId);
+		}
+		
 		// EHR launch for Patient Context
 		if (!patientId.isEmpty()) {
 			return new Redirect("ms/smartEhrLaunchServlet?launchUrl=" + launchUrl + "&patientId=" + patientId);
 		}
 		
-		//EHR launch for Visit Context
-		if (!visitId.isEmpty()) {
-			return new Redirect("ms/smartVisitEhrLaunchServlet?launchUrl=" + launchUrl + "&visitId=" + visitId);
-		}
-		
-		return new Redirect("ms/smartAppsSelectorServlet?launchUrl=" + launchUrl);
+		return new Redirect("ms/smartAppSelectorServlet?launchUrl=" + launchUrl);
 	}
-	
 }

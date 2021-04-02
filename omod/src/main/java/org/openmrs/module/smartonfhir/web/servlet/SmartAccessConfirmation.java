@@ -9,6 +9,9 @@
  */
 package org.openmrs.module.smartonfhir.web.servlet;
 
+import static org.openmrs.module.smartonfhir.web.servlet.SmartVisitEhrLaunchServlet.CACHE_PATIENT_NAME;
+import static org.openmrs.module.smartonfhir.web.servlet.SmartVisitEhrLaunchServlet.CACHE_VISIT_NAME;
+
 import javax.crypto.spec.SecretKeySpec;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -28,6 +31,7 @@ import org.keycloak.jose.jws.JWSBuilder;
 import org.keycloak.representations.JsonWebToken;
 import org.openmrs.User;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.smartonfhir.util.SmartCachingHolder;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
 
 public class SmartAccessConfirmation extends HttpServlet {
@@ -46,6 +50,17 @@ public class SmartAccessConfirmation extends HttpServlet {
 		if (user == null) {
 			res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", ""));
 			return;
+		}
+		
+		SmartCachingHolder smartCachingHolder = new SmartCachingHolder();
+		String patientId = smartCachingHolder.get(CACHE_PATIENT_NAME);
+		String visitId = smartCachingHolder.get(CACHE_VISIT_NAME);
+		
+		if (patientId != null) {
+			tokenSentBack.setOtherClaims(CACHE_PATIENT_NAME, patientId);
+		}
+		if (visitId != null) {
+			tokenSentBack.setOtherClaims(CACHE_VISIT_NAME, visitId);
 		}
 		
 		tokenSentBack.setSubject(user.getUsername());

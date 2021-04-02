@@ -18,15 +18,23 @@ import java.io.IOException;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
+import org.openmrs.module.smartonfhir.util.SmartCachingHolder;
 
 public class SmartVisitEhrLaunchServlet extends HttpServlet {
+	
+	public static final String CACHE_VISIT_NAME = "visit";
+	
+	public static final String CACHE_PATIENT_NAME = "patient";
 	
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		String launchUrl = req.getParameter("launchUrl");
 		String visitId = req.getParameter("visitId");
+		String patientId = req.getParameter("patientId");
 		
-		System.out.println(visitId);
+		SmartCachingHolder smartCachingHolder = new SmartCachingHolder();
+		smartCachingHolder.put(CACHE_PATIENT_NAME, patientId);
+		smartCachingHolder.put(CACHE_VISIT_NAME, visitId);
 		
 		String url = launchUrl + "?iss=http://localhost:8080/openmrs/ws/fhir2/R4&launch=" + visitId;
 		

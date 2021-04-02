@@ -12,7 +12,7 @@
         "extensionPointId": "patientDashboard.visitActions",
         "type": "link",
         "label": "SMART App",
-        "url": "smartonfhir/smartAppsRedirect.page?app=smartapps.smartVisitRedirect&visitId={{visit.uuid}}",
+        "url": "smartonfhir/smartAppsRedirect.page?app=smartapps.smartVisitRedirect&visitId={{visit.uuid}}&patientId={{patient.uuid}}",
         "icon": "icon-hdd"
       }
     ]
