@@ -4,7 +4,9 @@
     "description": "First smart app",
     "order": 1,
     "config" : {
-      "launchUrl" : "http://127.0.0.1:9090/launch-standalone.html"
+      "launchUrl" : "http://127.0.0.1:9090/launch-standalone.html",
+      "launchType" : "standalone",
+      "launchContext" : ""
     },
     "extensions": [
       {

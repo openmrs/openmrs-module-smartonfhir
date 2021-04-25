@@ -244,7 +244,8 @@
 			<dependency>
 				<groupId>com.github.ben-manes.caffeine</groupId>
 				<artifactId>caffeine</artifactId>
-				<version>2.8.2</version>
+				<version>${caffeineVersion}</version>
+				<scope>provided</scope>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -621,5 +622,6 @@
 		<uiframeworkVersion>3.15.0</uiframeworkVersion>
 		<appframeworkVersion>2.9</appframeworkVersion>
 		<appuiVersion>1.7</appuiVersion>
+		<caffeineVersion>2.8.2</caffeineVersion>
 	</properties>
 </project>

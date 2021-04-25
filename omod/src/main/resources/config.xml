@@ -65,11 +65,6 @@
 		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartAppSelectorServlet</servlet-class>
 	</servlet>
 
-	<servlet>
-		<servlet-name>smartVisitEhrLaunchServlet</servlet-name>
-		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartVisitEhrLaunchServlet</servlet-class>
-	</servlet>
-
 	<filter>
 		<filter-name>smartCORSFilter</filter-name>
 		<filter-class>org.openmrs.module.smartonfhir.web.filter.CORSFilter</filter-class>
@@ -124,8 +119,6 @@
 		<url-pattern>/ms/smartAccessConfirmation/*</url-pattern>
 		<url-pattern>/smartonfhir/smartAccessConfirmation</url-pattern>
 		<url-pattern>/smartonfhir/smartAccessConfirmation/*</url-pattern>
-		<url-pattern>/ms/smartVisitEhrLaunchServlet/</url-pattern>
-		<url-pattern>/ms/smartVisitEhrLaunchServlet/*</url-pattern>
 	</filter-mapping>
 
 	<!-- Internationalization -->

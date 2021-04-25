@@ -56,11 +56,6 @@ public class SmartForwardingFilter implements Filter {
 				req.getRequestDispatcher("/ms/smartAppSelectorServlet").forward(req, res);
 				return;
 			}
-			
-			if (request.getRequestURI().contains("/ms/smartVisitEhrLaunchServlet")) {
-				req.getRequestDispatcher("/ms/smartVisitEhrLaunchServlet").forward(req, res);
-				return;
-			}
 		}
 		chain.doFilter(req, res);
 	}

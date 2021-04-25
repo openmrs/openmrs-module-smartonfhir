@@ -13,24 +13,25 @@ import java.util.concurrent.TimeUnit;
 
 import com.github.benmanes.caffeine.cache.Caffeine;
 import com.github.benmanes.caffeine.cache.LoadingCache;
+import org.openmrs.module.smartonfhir.model.SmartSession;
 
-public class SmartCachingHolder {
+public class SmartSessionCache {
 	
-	private static LoadingCache<String, String> cache;
+	private static LoadingCache<String, SmartSession> cache;
 	
-	public SmartCachingHolder() {
+	public SmartSessionCache() {
 		if (cache == null) {
 			cache = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).maximumSize(500).recordStats()
 			        .build(key -> null);
 		}
 	}
 	
-	public boolean put(String key, String value) {
+	public boolean put(String key, SmartSession value) {
 		cache.put(key, value);
 		return Boolean.TRUE;
 	}
 	
-	public String get(String key) {
+	public SmartSession get(String key) {
 		try {
 			return cache.get(key);
 		}

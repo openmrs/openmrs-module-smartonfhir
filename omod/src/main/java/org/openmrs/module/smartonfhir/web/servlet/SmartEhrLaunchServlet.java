@@ -17,6 +17,8 @@ import java.io.IOException;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
+import org.openmrs.module.smartonfhir.model.SmartSession;
+import org.openmrs.module.smartonfhir.util.SmartSessionCache;
 
 public class SmartEhrLaunchServlet extends HttpServlet {
 	
@@ -24,8 +26,26 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		String patientId = req.getParameter("patientId");
 		String launchUrl = req.getParameter("launchUrl");
+		String visitId = req.getParameter("visitId");
+		String launchContext = req.getParameter("launchContext");
 		
-		String url = launchUrl + "?iss=http://localhost:8080/openmrs/ws/fhir2/R4&launch=" + patientId;
+		SmartSessionCache smartSessionCache = new SmartSessionCache();
+		SmartSession smartSession = new SmartSession();
+		
+		smartSession.setPatientUuid(patientId);
+		smartSession.setVisitUuid(visitId);
+		
+		String url = "";
+		
+		if (launchContext.equals("patient")) {
+			url = launchUrl + "?iss=http://localhost:8080/openmrs/ws/fhir2/R4&launch=" + patientId;
+			smartSessionCache.put(patientId, smartSession);
+		}
+		
+		if (launchContext.equals("visit")) {
+			url = launchUrl + "?iss=http://localhost:8080/openmrs/ws/fhir2/R4&launch=" + visitId;
+			smartSessionCache.put(visitId, smartSession);
+		}
 		
 		if (StringUtils.isBlank(url)) {
 			resp.sendError(HttpStatus.SC_BAD_REQUEST, "A url must be provided");

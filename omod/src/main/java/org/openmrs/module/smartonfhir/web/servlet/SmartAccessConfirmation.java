@@ -9,9 +9,6 @@
  */
 package org.openmrs.module.smartonfhir.web.servlet;
 
-import static org.openmrs.module.smartonfhir.web.servlet.SmartVisitEhrLaunchServlet.CACHE_PATIENT_NAME;
-import static org.openmrs.module.smartonfhir.web.servlet.SmartVisitEhrLaunchServlet.CACHE_VISIT_NAME;
-
 import javax.crypto.spec.SecretKeySpec;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -31,13 +28,19 @@ import org.keycloak.jose.jws.JWSBuilder;
 import org.keycloak.representations.JsonWebToken;
 import org.openmrs.User;
 import org.openmrs.api.context.Context;
-import org.openmrs.module.smartonfhir.util.SmartCachingHolder;
+import org.openmrs.module.smartonfhir.model.SmartSession;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
+import org.openmrs.module.smartonfhir.util.SmartSessionCache;
 
 public class SmartAccessConfirmation extends HttpServlet {
 	
+	public static final String PATIENT_NAME = "patient";
+	
+	public static final String VISIT_NAME = "visit";
+	
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
 		String token = req.getParameter("token");
+		String launchId = req.getParameter("launch");
 		
 		if (token == null) {
 			res.sendError(HttpServletResponse.SC_BAD_REQUEST);
@@ -52,15 +55,14 @@ public class SmartAccessConfirmation extends HttpServlet {
 			return;
 		}
 		
-		SmartCachingHolder smartCachingHolder = new SmartCachingHolder();
-		String patientId = smartCachingHolder.get(CACHE_PATIENT_NAME);
-		String visitId = smartCachingHolder.get(CACHE_VISIT_NAME);
+		SmartSessionCache smartSessionCache = new SmartSessionCache();
+		SmartSession smartSession = smartSessionCache.get(launchId);
 		
-		if (patientId != null) {
-			tokenSentBack.setOtherClaims(CACHE_PATIENT_NAME, patientId);
+		if (smartSession.getPatientUuid() != null) {
+			tokenSentBack.setOtherClaims(PATIENT_NAME, smartSession.getPatientUuid());
 		}
-		if (visitId != null) {
-			tokenSentBack.setOtherClaims(CACHE_VISIT_NAME, visitId);
+		if (smartSession.getVisitUuid() != null) {
+			tokenSentBack.setOtherClaims(VISIT_NAME, smartSession.getVisitUuid());
 		}
 		
 		tokenSentBack.setSubject(user.getUsername());
@@ -75,6 +77,5 @@ public class SmartAccessConfirmation extends HttpServlet {
 		String encodedToken = URLEncoder.encode(appToken, StandardCharsets.UTF_8.name());
 		
 		res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", encodedToken));
-		
 	}
 }
