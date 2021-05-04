@@ -16,16 +16,24 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class SmartAppsRedirectPageController {
 	
 	public Redirect get(@RequestParam(value = "app") AppDescriptor app,
-	        @RequestParam(required = false, value = "patientId") String patientId) {
+	        @RequestParam(required = false, value = "patientId") String patientId,
+	        @RequestParam(required = false, value = "visitId") String visitId) {
 		
 		String launchUrl = app.getConfig().get("launchUrl").getTextValue();
+		String launchType = app.getConfig().get("launchType").getTextValue();
+		String launchContext = app.getConfig().get("launchContext").getTextValue();
 		
 		// For EHR launch
-		if (patientId != null) {
-			return new Redirect("ms/smartEhrLaunchServlet?launchUrl=" + launchUrl + "&patientId=" + patientId);
+		if (launchType.equals("EHR")) {
+			return new Redirect("ms/smartEhrLaunchServlet?launchUrl=" + launchUrl + "&patientId=" + patientId + "&visitId="
+			        + visitId + "&launchContext=" + launchContext);
 		}
 		
-		return new Redirect("ms/smartAppsSelectorServlet?launchUrl=" + launchUrl);
+		// For Standalone launch
+		if (launchType.equals("standalone")) {
+			return new Redirect("ms/smartAppSelectorServlet?launchUrl=" + launchUrl);
+		}
+		
+		return new Redirect("ms/smartAppSelectorServlet?launchUrl=");
 	}
-	
 }

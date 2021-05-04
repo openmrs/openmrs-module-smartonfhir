@@ -28,12 +28,19 @@ import org.keycloak.jose.jws.JWSBuilder;
 import org.keycloak.representations.JsonWebToken;
 import org.openmrs.User;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.smartonfhir.model.SmartSession;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
+import org.openmrs.module.smartonfhir.util.SmartSessionCache;
 
 public class SmartAccessConfirmation extends HttpServlet {
 	
+	public static final String PATIENT_NAME = "patient";
+	
+	public static final String VISIT_NAME = "visit";
+	
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
 		String token = req.getParameter("token");
+		String launchId = req.getParameter("launch");
 		
 		if (token == null) {
 			res.sendError(HttpServletResponse.SC_BAD_REQUEST);
@@ -48,6 +55,16 @@ public class SmartAccessConfirmation extends HttpServlet {
 			return;
 		}
 		
+		SmartSessionCache smartSessionCache = new SmartSessionCache();
+		SmartSession smartSession = smartSessionCache.get(launchId);
+		
+		if (smartSession.getPatientUuid() != null) {
+			tokenSentBack.setOtherClaims(PATIENT_NAME, smartSession.getPatientUuid());
+		}
+		if (smartSession.getVisitUuid() != null) {
+			tokenSentBack.setOtherClaims(VISIT_NAME, smartSession.getVisitUuid());
+		}
+		
 		tokenSentBack.setSubject(user.getUsername());
 		
 		SecretKeySpec secretKeySpec = new SecretKeySpec(SmartSecretKeyHolder.getSecretKey(), JavaAlgorithm.HS256);
@@ -60,6 +77,5 @@ public class SmartAccessConfirmation extends HttpServlet {
 		String encodedToken = URLEncoder.encode(appToken, StandardCharsets.UTF_8.name());
 		
 		res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", encodedToken));
-		
 	}
 }
