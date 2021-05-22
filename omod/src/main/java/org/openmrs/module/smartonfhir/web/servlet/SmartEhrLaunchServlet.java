@@ -15,15 +15,21 @@ import javax.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 
+import ca.uhn.fhir.rest.server.IServerAddressStrategy;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
 import org.openmrs.module.smartonfhir.model.SmartSession;
 import org.openmrs.module.smartonfhir.util.SmartSessionCache;
+import org.springframework.beans.factory.annotation.Autowired;
 
 public class SmartEhrLaunchServlet extends HttpServlet {
 	
+	@Autowired
+	private IServerAddressStrategy iServerAddressStrategy;
+	
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+		String baseURL = iServerAddressStrategy.determineServerBase(null, req);
 		String patientId = req.getParameter("patientId");
 		String launchUrl = req.getParameter("launchUrl");
 		String visitId = req.getParameter("visitId");
@@ -38,12 +44,12 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 		String url = "";
 		
 		if (launchContext.equals("patient")) {
-			url = launchUrl + "?iss=http://localhost:8080/openmrs/ws/fhir2/R4&launch=" + patientId;
+			url = launchUrl + "?iss=" + baseURL + "&launch=" + patientId;
 			smartSessionCache.put(patientId, smartSession);
 		}
 		
 		if (launchContext.equals("visit")) {
-			url = launchUrl + "?iss=http://localhost:8080/openmrs/ws/fhir2/R4&launch=" + visitId;
+			url = launchUrl + "?iss=" + baseURL + "&launch=" + visitId;
 			smartSessionCache.put(visitId, smartSession);
 		}
 		
