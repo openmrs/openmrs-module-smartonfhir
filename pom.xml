@@ -247,6 +247,12 @@
 				<version>${caffeineVersion}</version>
 				<scope>provided</scope>
 			</dependency>
+			<dependency>
+				<groupId>org.openmrs.module</groupId>
+				<artifactId>fhir2-omod</artifactId>
+				<version>1.0.0-SNAPSHOT</version>
+				<scope>provided</scope>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -310,13 +316,6 @@
 			<groupId>org.openmrs.module</groupId>
 			<artifactId>coreapps-omod</artifactId>
 			<version>1.28.0</version>
-			<scope>provided</scope>
-		</dependency>
-
-		<dependency>
-			<groupId>org.openmrs.module</groupId>
-			<artifactId>fhir2-omod</artifactId>
-			<version>1.0.0-SNAPSHOT</version>
 			<scope>provided</scope>
 		</dependency>
 	</dependencies>
