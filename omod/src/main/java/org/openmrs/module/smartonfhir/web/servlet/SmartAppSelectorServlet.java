@@ -15,19 +15,19 @@ import javax.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 
+import ca.uhn.fhir.rest.server.IServerAddressStrategy;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
-import org.openmrs.module.fhir2.web.util.OpenmrsFhirAddressStrategy;
 import org.springframework.beans.factory.annotation.Autowired;
 
 public class SmartAppSelectorServlet extends HttpServlet {
 	
 	@Autowired
-	private OpenmrsFhirAddressStrategy openmrsFhirAddressStrategy;
+	private IServerAddressStrategy iServerAddressStrategy;
 	
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-		String baseURL = openmrsFhirAddressStrategy.determineServerBase(null, req);
+		String baseURL = iServerAddressStrategy.determineServerBase(null, req);
 		String smartAppLaunchURL = req.getParameter("launchUrl");
 		
 		String url = smartAppLaunchURL + "?iss=" + baseURL + "&launch=";
