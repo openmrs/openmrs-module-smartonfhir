@@ -22,16 +22,17 @@ public class SmartAppsRedirectPageController {
 		String launchUrl = app.getConfig().get("launchUrl").getTextValue();
 		String launchType = app.getConfig().get("launchType").getTextValue();
 		String launchContext = app.getConfig().get("launchContext").getTextValue();
+		String fhirVersion = app.getConfig().get("fhirVersion").getTextValue();
 		
 		// For EHR launch
 		if (launchType.equals("EHR")) {
 			return new Redirect("ms/smartEhrLaunchServlet?launchUrl=" + launchUrl + "&patientId=" + patientId + "&visitId="
-			        + visitId + "&launchContext=" + launchContext);
+			        + visitId + "&launchContext=" + launchContext + "&fhirVersion=" + fhirVersion);
 		}
 		
 		// For Standalone launch
 		if (launchType.equals("standalone")) {
-			return new Redirect("ms/smartAppSelectorServlet?launchUrl=" + launchUrl);
+			return new Redirect("ms/smartAppSelectorServlet?launchUrl=" + launchUrl + "&fhirVersion=" + fhirVersion);
 		}
 		
 		return new Redirect("ms/smartAppSelectorServlet?launchUrl=");

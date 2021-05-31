@@ -27,8 +27,13 @@ public class SmartAppSelectorServlet extends HttpServlet {
 	
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-		String baseURL = iServerAddressStrategy.determineServerBase(null, req);
+		String baseURL = iServerAddressStrategy.determineServerBase(req.getServletContext(), req);
 		String smartAppLaunchURL = req.getParameter("launchUrl");
+		
+		if (!(baseURL.contains("R4") || baseURL.contains("R3"))) {
+			String fhirVersion = req.getParameter("fhirVersion");
+			baseURL = baseURL + fhirVersion;
+		}
 		
 		String url = smartAppLaunchURL + "?iss=" + baseURL + "&launch=";
 		

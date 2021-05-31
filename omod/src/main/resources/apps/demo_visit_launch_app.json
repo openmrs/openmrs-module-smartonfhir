@@ -6,7 +6,8 @@
     "config" : {
       "launchUrl" : "http://127.0.0.1:9090/launch-standalone.html",
       "launchType" : "EHR",
-      "launchContext" : "visit"
+      "launchContext" : "visit",
+      "fhirVersion" : "R4"
     },
     "extensions": [
       {

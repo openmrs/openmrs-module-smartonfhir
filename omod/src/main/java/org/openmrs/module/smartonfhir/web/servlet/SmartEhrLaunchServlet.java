@@ -29,11 +29,16 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 	
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-		String baseURL = iServerAddressStrategy.determineServerBase(null, req);
+		String baseURL = iServerAddressStrategy.determineServerBase(req.getServletContext(), req);
 		String patientId = req.getParameter("patientId");
 		String launchUrl = req.getParameter("launchUrl");
 		String visitId = req.getParameter("visitId");
 		String launchContext = req.getParameter("launchContext");
+		
+		if (!(baseURL.contains("R4") || baseURL.contains("R3"))) {
+			String fhirVersion = req.getParameter("fhirVersion");
+			baseURL = baseURL + fhirVersion;
+		}
 		
 		SmartSessionCache smartSessionCache = new SmartSessionCache();
 		SmartSession smartSession = new SmartSession();
