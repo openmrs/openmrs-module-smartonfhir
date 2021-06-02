@@ -18,20 +18,24 @@ import java.io.IOException;
 import ca.uhn.fhir.rest.server.IServerAddressStrategy;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.openmrs.api.context.Context;
 
 public class SmartAppSelectorServlet extends HttpServlet {
 	
-	@Autowired
-	private IServerAddressStrategy iServerAddressStrategy;
+	private static final String DEFAULT_FHIR_VERSION = "R4";
 	
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+		IServerAddressStrategy iServerAddressStrategy = Context.getRegisteredComponent("openmrsFhirAddressStrategy",
+		    IServerAddressStrategy.class);
 		String baseURL = iServerAddressStrategy.determineServerBase(req.getServletContext(), req);
 		String smartAppLaunchURL = req.getParameter("launchUrl");
 		
 		if (!(baseURL.contains("R4") || baseURL.contains("R3"))) {
 			String fhirVersion = req.getParameter("fhirVersion");
+			if (fhirVersion == null) {
+				fhirVersion = DEFAULT_FHIR_VERSION;
+			}
 			baseURL = baseURL + fhirVersion;
 		}
 		

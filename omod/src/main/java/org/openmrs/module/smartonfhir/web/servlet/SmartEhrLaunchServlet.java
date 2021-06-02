@@ -18,17 +18,18 @@ import java.io.IOException;
 import ca.uhn.fhir.rest.server.IServerAddressStrategy;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
+import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartSession;
 import org.openmrs.module.smartonfhir.util.SmartSessionCache;
-import org.springframework.beans.factory.annotation.Autowired;
 
 public class SmartEhrLaunchServlet extends HttpServlet {
 	
-	@Autowired
-	private IServerAddressStrategy iServerAddressStrategy;
+	private static final String DEFAULT_FHIR_VERSION = "R4";
 	
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+		IServerAddressStrategy iServerAddressStrategy = Context.getRegisteredComponent("openmrsFhirAddressStrategy",
+		    IServerAddressStrategy.class);
 		String baseURL = iServerAddressStrategy.determineServerBase(req.getServletContext(), req);
 		String patientId = req.getParameter("patientId");
 		String launchUrl = req.getParameter("launchUrl");
@@ -37,6 +38,9 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 		
 		if (!(baseURL.contains("R4") || baseURL.contains("R3"))) {
 			String fhirVersion = req.getParameter("fhirVersion");
+			if (fhirVersion == null) {
+				fhirVersion = DEFAULT_FHIR_VERSION;
+			}
 			baseURL = baseURL + fhirVersion;
 		}
 		
