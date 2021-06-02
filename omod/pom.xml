@@ -81,6 +81,10 @@
 			<artifactId>caffeine</artifactId>
 			<scope>provided</scope>
 		</dependency>
+		<dependency>
+			<groupId>org.openmrs.module</groupId>
+			<artifactId>fhir2-omod</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>

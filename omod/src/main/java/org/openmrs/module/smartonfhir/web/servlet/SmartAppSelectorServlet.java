@@ -15,15 +15,31 @@ import javax.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 
+import ca.uhn.fhir.rest.server.IServerAddressStrategy;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
+import org.openmrs.api.context.Context;
 
 public class SmartAppSelectorServlet extends HttpServlet {
 	
+	private static final String DEFAULT_FHIR_VERSION = "R4";
+	
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+		IServerAddressStrategy iServerAddressStrategy = Context.getRegisteredComponent("openmrsFhirAddressStrategy",
+		    IServerAddressStrategy.class);
+		String baseURL = iServerAddressStrategy.determineServerBase(req.getServletContext(), req);
 		String smartAppLaunchURL = req.getParameter("launchUrl");
-		String url = smartAppLaunchURL + "?iss=http://localhost:8080/openmrs/ws/fhir2/R4&launch=";
+		
+		if (!(baseURL.contains("R4") || baseURL.contains("R3"))) {
+			String fhirVersion = req.getParameter("fhirVersion");
+			if (fhirVersion == null) {
+				fhirVersion = DEFAULT_FHIR_VERSION;
+			}
+			baseURL = baseURL + fhirVersion;
+		}
+		
+		String url = smartAppLaunchURL + "?iss=" + baseURL + "&launch=";
 		
 		if (StringUtils.isBlank(url)) {
 			resp.sendError(HttpStatus.SC_BAD_REQUEST, "A url must be provided");
