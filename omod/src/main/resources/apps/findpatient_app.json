@@ -9,5 +9,13 @@
       "label": "coreapps.findPatient.app.label",
       "showLastViewedPatients": "true"
     }
+  },
+  {
+    "id": "smart.search",
+    "instanceOf": "coreapps.template.findPatient",
+    "description": "Basic patient search, by ID or Name (using OpenMRS's standard patient search)",
+    "config": {
+      "afterSelectedUrl": "/ms/smartPatientSelected?patientId={{patientId}}"
+    }
   }
 ]
