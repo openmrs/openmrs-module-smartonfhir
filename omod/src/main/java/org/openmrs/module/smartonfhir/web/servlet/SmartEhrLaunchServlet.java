@@ -15,34 +15,21 @@ import javax.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 
-import ca.uhn.fhir.rest.server.IServerAddressStrategy;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
-import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartSession;
+import org.openmrs.module.smartonfhir.util.FhirBaseAddressStrategy;
 import org.openmrs.module.smartonfhir.util.SmartSessionCache;
 
 public class SmartEhrLaunchServlet extends HttpServlet {
 	
-	private static final String DEFAULT_FHIR_VERSION = "R4";
-	
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-		IServerAddressStrategy iServerAddressStrategy = Context.getRegisteredComponent("openmrsFhirAddressStrategy",
-		    IServerAddressStrategy.class);
-		String baseURL = iServerAddressStrategy.determineServerBase(req.getServletContext(), req);
+		FhirBaseAddressStrategy fhirBaseAddressStrategy = new FhirBaseAddressStrategy();
 		String patientId = req.getParameter("patientId");
-		String launchUrl = req.getParameter("launchUrl");
 		String visitId = req.getParameter("visitId");
 		String launchContext = req.getParameter("launchContext");
-		
-		if (!(baseURL.contains("R4") || baseURL.contains("R3"))) {
-			String fhirVersion = req.getParameter("fhirVersion");
-			if (fhirVersion == null) {
-				fhirVersion = DEFAULT_FHIR_VERSION;
-			}
-			baseURL = baseURL + fhirVersion;
-		}
+		String url = fhirBaseAddressStrategy.getBaseAddress(req);
 		
 		SmartSessionCache smartSessionCache = new SmartSessionCache();
 		SmartSession smartSession = new SmartSession();
@@ -50,15 +37,13 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 		smartSession.setPatientUuid(patientId);
 		smartSession.setVisitUuid(visitId);
 		
-		String url = "";
-		
 		if (launchContext.equals("patient")) {
-			url = launchUrl + "?iss=" + baseURL + "&launch=" + patientId;
+			url = url + patientId;
 			smartSessionCache.put(patientId, smartSession);
 		}
 		
 		if (launchContext.equals("visit")) {
-			url = launchUrl + "?iss=" + baseURL + "&launch=" + visitId;
+			url = url + visitId;
 			smartSessionCache.put(visitId, smartSession);
 		}
 		
