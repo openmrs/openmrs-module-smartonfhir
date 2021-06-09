@@ -1,0 +1,11 @@
+[
+  {
+    "id": "smartonfhir.search.visit",
+    "description": "List of all visits for a particular patient",
+    "order": 2,
+    "config": {
+      "afterSelectedUrl": "smartonfhir/smartAppsRedirect.page?app=smartapps.smartVisitRedirect&visitId={{visit.uuid}}&patientId={{patient.uuid}}",
+      "heading": "Select Visit"
+    }
+  }
+]
