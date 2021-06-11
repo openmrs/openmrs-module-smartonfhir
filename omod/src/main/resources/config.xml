@@ -65,6 +65,11 @@
 		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartAppSelectorServlet</servlet-class>
 	</servlet>
 
+	<servlet>
+		<servlet-name>smartVisitSelected</servlet-name>
+		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartVisitSelected</servlet-class>
+	</servlet>
+
 	<filter>
 		<filter-name>smartCORSFilter</filter-name>
 		<filter-class>org.openmrs.module.smartonfhir.web.filter.CORSFilter</filter-class>
@@ -95,7 +100,7 @@
 		<init-param>
 			<!-- White-list of valid URLs; requesting any other URL will end the session -->
 			<param-name>validUrls</param-name>
-			<param-value>/smartonfhir/findPatient.page,/smartonfhir/smartAccessConfirmation,/ms/smartAccessConfirmation,/ms/smartPatientSelected,/appui/session/*,/ws/rest/v1/patient,/ms/uiframework/resource/*,/images/*</param-value>
+			<param-value>/smartonfhir/findPatient.page,/smartonfhir/smartAccessConfirmation,/ms/smartAccessConfirmation,/ms/smartPatientSelected,/ms/smartVisitSelected,/smartonfhir/smartVisitSelected,/appui/session/*,/ws/rest/v1/patient,/ms/uiframework/resource/*,/images/*</param-value>
 		</init-param>
 	</filter>
 	<filter-mapping>
@@ -119,6 +124,10 @@
 		<url-pattern>/ms/smartAccessConfirmation/*</url-pattern>
 		<url-pattern>/smartonfhir/smartAccessConfirmation</url-pattern>
 		<url-pattern>/smartonfhir/smartAccessConfirmation/*</url-pattern>
+		<url-pattern>/ms/smartVisitSelected</url-pattern>
+		<url-pattern>/ms/smartVisitSelected/*</url-pattern>
+		<url-pattern>/smartonfhir/smartVisitSelected</url-pattern>
+		<url-pattern>/smartonfhir/smartVisitSelected/*</url-pattern>
 	</filter-mapping>
 
 	<!-- Internationalization -->

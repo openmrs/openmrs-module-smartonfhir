@@ -9,6 +9,9 @@
  */
 package org.openmrs.module.smartonfhir.web.servlet;
 
+import static org.openmrs.module.smartonfhir.web.servlet.SmartAccessConfirmation.PATIENT_NAME;
+import static org.openmrs.module.smartonfhir.web.servlet.SmartAccessConfirmation.VISIT_NAME;
+
 import javax.crypto.spec.SecretKeySpec;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -19,34 +22,32 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
-import org.keycloak.crypto.Algorithm;
-import org.keycloak.crypto.JavaAlgorithm;
-import org.keycloak.crypto.KeyWrapper;
-import org.keycloak.crypto.MacSignatureSignerContext;
-import org.keycloak.crypto.SignatureSignerContext;
+import org.keycloak.crypto.*;
 import org.keycloak.jose.jws.JWSBuilder;
 import org.keycloak.representations.JsonWebToken;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
 
-public class SmartPatientSelected extends HttpServlet {
+public class SmartVisitSelected extends HttpServlet {
 	
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
-		String launchType = req.getParameter("launchType");
-		String token = req.getParameter("token");
 		String patientId = req.getParameter("patientId");
-		
-		if (launchType.equals("encounter")) {
-			res.sendRedirect(res.encodeRedirectURL("/smartonfhir/findVisit.page?app=smartonfhir.search.visit&patientId="
-			        + patientId + "&token=" + URLEncoder.encode(token, StandardCharsets.UTF_8.name())));
-			return;
-		}
+		String visitId = req.getParameter("visitId");
+		String token = req.getParameter("token");
 		
 		if (token == null || patientId == null) {
 			res.sendError(HttpServletResponse.SC_BAD_REQUEST);
 			return;
 		}
+		
 		JsonWebToken tokenSentBack = new JsonWebToken();
 		tokenSentBack.setOtherClaims("patient", patientId);
+		
+		if (patientId != null) {
+			tokenSentBack.setOtherClaims(PATIENT_NAME, patientId);
+		}
+		if (visitId != null) {
+			tokenSentBack.setOtherClaims(VISIT_NAME, visitId);
+		}
 		
 		SecretKeySpec hmacSecretKeySpec = new SecretKeySpec(SmartSecretKeyHolder.getSecretKey(), JavaAlgorithm.HS256);
 		KeyWrapper keyWrapper = new KeyWrapper();

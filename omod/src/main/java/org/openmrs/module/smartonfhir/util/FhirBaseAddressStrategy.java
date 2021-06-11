@@ -18,7 +18,7 @@ public class FhirBaseAddressStrategy {
 	
 	private static final String DEFAULT_FHIR_VERSION = "R4";
 	
-	public String getBaseAddress(HttpServletRequest request) {
+	public String getBaseSmartLaunchAddress(HttpServletRequest request) {
 		IServerAddressStrategy iServerAddressStrategy = Context.getRegisteredComponent("openmrsFhirAddressStrategy",
 		    IServerAddressStrategy.class);
 		String baseURL = iServerAddressStrategy.determineServerBase(request.getServletContext(), request);

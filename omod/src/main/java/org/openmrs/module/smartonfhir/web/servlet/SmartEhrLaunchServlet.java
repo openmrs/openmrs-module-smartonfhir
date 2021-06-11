@@ -29,7 +29,7 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 		String patientId = req.getParameter("patientId");
 		String visitId = req.getParameter("visitId");
 		String launchContext = req.getParameter("launchContext");
-		String url = fhirBaseAddressStrategy.getBaseAddress(req);
+		String url = fhirBaseAddressStrategy.getBaseSmartLaunchAddress(req);
 		
 		SmartSessionCache smartSessionCache = new SmartSessionCache();
 		SmartSession smartSession = new SmartSession();
