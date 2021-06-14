@@ -4,7 +4,7 @@
     "description": "Basic patient search, by ID or Name (using OpenMRS's standard patient search)",
     "order": 2,
     "config": {
-      "afterSelectedUrl": "/ms/smartPatientSelected?app=smart_client&patientId={{patientId}}",
+      "afterSelectedUrl": "/ms/smartLaunchOptionSelected?app=smart_client&patientId={{patientId}}",
       "heading": "",
       "label": "coreapps.findPatient.app.label",
       "showLastViewedPatients": "true"
@@ -15,7 +15,7 @@
     "instanceOf": "coreapps.template.findPatient",
     "description": "Basic patient search, by ID or Name (using OpenMRS's standard patient search)",
     "config": {
-      "afterSelectedUrl": "/ms/smartPatientSelected?patientId={{patientId}}"
+      "afterSelectedUrl": "/ms/smartLaunchOptionSelected?patientId={{patientId}}"
     }
   }
 ]

@@ -18,7 +18,10 @@ import java.io.IOException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
+import org.apache.http.NameValuePair;
+import org.apache.http.client.utils.URLEncodedUtils;
 import org.keycloak.crypto.Algorithm;
 import org.keycloak.crypto.JavaAlgorithm;
 import org.keycloak.crypto.KeyWrapper;
@@ -28,25 +31,29 @@ import org.keycloak.jose.jws.JWSBuilder;
 import org.keycloak.representations.JsonWebToken;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
 
-public class SmartPatientSelected extends HttpServlet {
+public class SmartLaunchOptionSelected extends HttpServlet {
 	
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
-		String launchType = req.getParameter("launchType");
-		String token = req.getParameter("token");
-		String patientId = req.getParameter("patientId");
+		String token = getParameter(req, "token");
+		String patientId = getParameter(req, "patientId");
+		String visitId = getParameter(req, "visitId");
+		String decodedUrl = URLDecoder.decode(token, StandardCharsets.UTF_8.name());
+		String launchType = getParameterFromStringUrl(decodedUrl, "launchType");
 		
-		if (launchType.equals("encounter")) {
+		if (launchType.equals("encounter") && visitId == null) {
 			res.sendRedirect(res.encodeRedirectURL("/smartonfhir/findVisit.page?app=smartonfhir.search.visit&patientId="
 			        + patientId + "&token=" + URLEncoder.encode(token, StandardCharsets.UTF_8.name())));
 			return;
 		}
 		
-		if (token == null || patientId == null) {
+		if (token == null || (patientId == null && visitId == null)) {
 			res.sendError(HttpServletResponse.SC_BAD_REQUEST);
 			return;
 		}
+		
 		JsonWebToken tokenSentBack = new JsonWebToken();
 		tokenSentBack.setOtherClaims("patient", patientId);
+		tokenSentBack.setOtherClaims("visit", visitId);
 		
 		SecretKeySpec hmacSecretKeySpec = new SecretKeySpec(SmartSecretKeyHolder.getSecretKey(), JavaAlgorithm.HS256);
 		KeyWrapper keyWrapper = new KeyWrapper();
@@ -57,7 +64,27 @@ public class SmartPatientSelected extends HttpServlet {
 		String appToken = new JWSBuilder().jsonContent(tokenSentBack).sign(signer);
 		String encodedToken = URLEncoder.encode(appToken, StandardCharsets.UTF_8.name());
 		
-		String decodedUrl = URLDecoder.decode(token, StandardCharsets.UTF_8.name());
 		res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", encodedToken));
+	}
+	
+	private String getParameter(HttpServletRequest request, String parameter) {
+		String result = request.getParameter(parameter);
+		if (result == null || result.isEmpty()) {
+			return null;
+		}
+		
+		return result;
+	}
+	
+	private String getParameterFromStringUrl(String url, String parameter) {
+		List<NameValuePair> decodedUrlParams = URLEncodedUtils.parse(url, StandardCharsets.UTF_8);
+		
+		for (NameValuePair obj : decodedUrlParams) {
+			if (obj.getName().equals(parameter)) {
+				return obj.getValue();
+			}
+		}
+		
+		return null;
 	}
 }

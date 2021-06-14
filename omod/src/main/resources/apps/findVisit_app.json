@@ -4,7 +4,7 @@
     "description": "List of all visits for a particular patient",
     "order": 2,
     "config": {
-      "afterSelectedUrl": "ms/smartVisitSelected?visitId={{visitId}}&patientId={{patient.uuid}}&token={{token}}",
+      "afterSelectedUrl": "ms/smartLaunchOptionSelected?visitId={{visitId}}&patientId={{patient.uuid}}&token={{token}}",
       "heading": "Select Visit"
     }
   }

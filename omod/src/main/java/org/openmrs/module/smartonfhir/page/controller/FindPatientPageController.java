@@ -24,10 +24,9 @@ import org.springframework.web.bind.annotation.RequestParam;
 public class FindPatientPageController {
 	
 	public void get(PageModel model, @RequestParam("app") AppDescriptor app, @RequestParam("token") String token,
-	        @RequestParam("launchType") String launchType, UiSessionContext sessionContext, UiUtils ui)
-	        throws UnsupportedEncodingException {
+	        UiSessionContext sessionContext, UiUtils ui) throws UnsupportedEncodingException {
 		model.addAttribute("afterSelectedUrl", app.getConfig().get("afterSelectedUrl").getTextValue() + "&token="
-		        + URLEncoder.encode(token, StandardCharsets.UTF_8.name()) + "&launchType=" + launchType);
+		        + URLEncoder.encode(token, StandardCharsets.UTF_8.name()));
 		model.addAttribute("heading", app.getConfig().get("heading").getTextValue());
 		model.addAttribute("label", app.getConfig().get("label").getTextValue());
 		model.addAttribute("showLastViewedPatients", app.getConfig().get("showLastViewedPatients").getBooleanValue());
