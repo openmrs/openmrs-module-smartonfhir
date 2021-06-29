@@ -38,6 +38,7 @@
 		<require_module>org.openmrs.module.uiframework</require_module>
 		<require_module>org.openmrs.module.coreapps</require_module>
 		<require_module>org.openmrs.module.appframework</require_module>
+		<require_module>org.openmrs.module.emrapi</require_module>
 	</require_modules>
 
 	<servlet>
@@ -51,8 +52,8 @@
 	</servlet>
 
 	<servlet>
-		<servlet-name>smartPatientSelected</servlet-name>
-		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartPatientSelected</servlet-class>
+		<servlet-name>smartLaunchOptionSelected</servlet-name>
+		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartLaunchOptionSelected</servlet-class>
 	</servlet>
 
 	<servlet>
@@ -95,7 +96,7 @@
 		<init-param>
 			<!-- White-list of valid URLs; requesting any other URL will end the session -->
 			<param-name>validUrls</param-name>
-			<param-value>/smartonfhir/findPatient.page,/smartonfhir/smartAccessConfirmation,/ms/smartAccessConfirmation,/ms/smartPatientSelected,/appui/session/*,/ws/rest/v1/patient,/ms/uiframework/resource/*,/images/*</param-value>
+			<param-value>/smartonfhir/findPatient.page,/smartonfhir/smartAccessConfirmation,/ms/smartAccessConfirmation,/ms/smartLaunchOptionSelectedSelected,/appui/session/*,/ws/rest/v1/patient,/ms/uiframework/resource/*,/images/*</param-value>
 		</init-param>
 	</filter>
 	<filter-mapping>

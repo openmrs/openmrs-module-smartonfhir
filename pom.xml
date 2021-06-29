@@ -253,6 +253,12 @@
 				<version>1.2.1</version>
 				<scope>provided</scope>
 			</dependency>
+			<dependency>
+				<groupId>org.openmrs.module</groupId>
+				<artifactId>emrapi-api</artifactId>
+				<version>${emrapiVersion}</version>
+				<scope>provided</scope>
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 
@@ -629,5 +635,6 @@
 		<appframeworkVersion>2.9</appframeworkVersion>
 		<appuiVersion>1.7</appuiVersion>
 		<caffeineVersion>2.8.2</caffeineVersion>
+		<emrapiVersion>1.29.0</emrapiVersion>
 	</properties>
 </project>
