@@ -21,6 +21,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.Map;
 
+import lombok.extern.slf4j.Slf4j;
 import org.keycloak.TokenVerifier;
 import org.keycloak.common.VerificationException;
 import org.keycloak.crypto.Algorithm;
@@ -34,6 +35,7 @@ import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponentsBuilder;
 
+@Slf4j
 public class SmartLaunchOptionSelected extends HttpServlet {
 	
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
@@ -47,10 +49,23 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 			jwtKeyToken = getParameterFromStringUrl(decodedUrl, "key");
 		}
 		catch (URISyntaxException e) {
-			e.printStackTrace();
+			log.error("Verification exception while trying to determine launchType", e);
+			return;
 		}
-		
-		String launchTypeString = getLaunchTypeString(jwtKeyToken);
+
+		String launchTypeString = null;
+
+		try {
+			launchTypeString = getLaunchTypeString(jwtKeyToken);
+		} catch (VerificationException e) {
+			log.error("Error while extracting the launch type from token");
+			return;
+		}
+
+		if (launchTypeString == null) {
+			res.sendError(HttpServletResponse.SC_FORBIDDEN, "Couldn't found scope in Token");
+			return;
+		}
 		
 		if (launchTypeString.contains("encounter") && visitId == null) {
 			res.sendRedirect(res.encodeRedirectURL("/smartonfhir/findVisit.page?app=smartonfhir.search.visit&patientId="
@@ -97,18 +112,12 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 		
 		return null;
 	}
-	
-	private String getLaunchTypeString(String key) {
+
+	private String getLaunchTypeString(String key) throws VerificationException {
 		JsonWebToken appToken;
-		
-		try {
-			appToken = TokenVerifier.create(key, JsonWebToken.class).getToken();
-		}
-		catch (VerificationException e) {
-			e.printStackTrace();
-			return null;
-		}
-		
+
+		appToken = TokenVerifier.create(key, JsonWebToken.class).getToken();
+
 		for (Map.Entry<String, Object> value : appToken.getOtherClaims().entrySet()) {
 			if (value.getKey().equals("launchType")) {
 				return value.getValue().toString();
