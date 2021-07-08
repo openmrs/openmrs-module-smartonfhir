@@ -15,13 +15,15 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
+import java.util.Map;
 
-import org.apache.http.NameValuePair;
-import org.apache.http.client.utils.URLEncodedUtils;
+import lombok.extern.slf4j.Slf4j;
+import org.keycloak.TokenVerifier;
+import org.keycloak.common.VerificationException;
 import org.keycloak.crypto.Algorithm;
 import org.keycloak.crypto.JavaAlgorithm;
 import org.keycloak.crypto.KeyWrapper;
@@ -30,7 +32,10 @@ import org.keycloak.crypto.SignatureSignerContext;
 import org.keycloak.jose.jws.JWSBuilder;
 import org.keycloak.representations.JsonWebToken;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
+import org.springframework.util.MultiValueMap;
+import org.springframework.web.util.UriComponentsBuilder;
 
+@Slf4j
 public class SmartLaunchOptionSelected extends HttpServlet {
 	
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
@@ -38,9 +43,31 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 		String patientId = getParameter(req, "patientId");
 		String visitId = getParameter(req, "visitId");
 		String decodedUrl = URLDecoder.decode(token, StandardCharsets.UTF_8.name());
-		String launchType = getParameterFromStringUrl(decodedUrl, "launchType");
 		
-		if (launchType.equals("encounter") && visitId == null) {
+		String jwtKeyToken = null;
+		try {
+			jwtKeyToken = getParameterFromStringUrl(decodedUrl, "key");
+		}
+		catch (URISyntaxException e) {
+			log.error("Verification exception while trying to determine launchType", e);
+			return;
+		}
+
+		String launchTypeString = null;
+
+		try {
+			launchTypeString = getLaunchTypeString(jwtKeyToken);
+		} catch (VerificationException e) {
+			log.error("Error while extracting the launch type from token", e);
+			return;
+		}
+
+		if (launchTypeString == null) {
+			res.sendError(HttpServletResponse.SC_FORBIDDEN, "Couldn't found scope in Token");
+			return;
+		}
+		
+		if (launchTypeString.contains("encounter") && visitId == null) {
 			res.sendRedirect(res.encodeRedirectURL("/smartonfhir/findVisit.page?app=smartonfhir.search.visit&patientId="
 			        + patientId + "&token=" + URLEncoder.encode(token, StandardCharsets.UTF_8.name())));
 			return;
@@ -76,15 +103,28 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 		return result;
 	}
 	
-	private String getParameterFromStringUrl(String url, String parameter) {
-		List<NameValuePair> decodedUrlParams = URLEncodedUtils.parse(url, StandardCharsets.UTF_8);
+	private String getParameterFromStringUrl(String url, String parameter) throws URISyntaxException {
+		MultiValueMap<String, String> params = UriComponentsBuilder.fromUriString(url).build().getQueryParams();
 		
-		for (NameValuePair obj : decodedUrlParams) {
-			if (obj.getName().equals(parameter)) {
-				return obj.getValue();
+		if (params.containsKey(parameter)) {
+			return params.getFirst(parameter);
+		}
+		
+		return null;
+	}
+
+	private String getLaunchTypeString(String key) throws VerificationException {
+		JsonWebToken appToken;
+
+		appToken = TokenVerifier.create(key, JsonWebToken.class).getToken();
+
+		for (Map.Entry<String, Object> value : appToken.getOtherClaims().entrySet()) {
+			if (value.getKey().equals("launchType")) {
+				return value.getValue().toString();
 			}
 		}
 		
 		return null;
 	}
+	
 }
