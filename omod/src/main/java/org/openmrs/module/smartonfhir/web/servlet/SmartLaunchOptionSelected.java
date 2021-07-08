@@ -58,7 +58,7 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 		try {
 			launchTypeString = getLaunchTypeString(jwtKeyToken);
 		} catch (VerificationException e) {
-			log.error("Error while extracting the launch type from token");
+			log.error("Error while extracting the launch type from token", e);
 			return;
 		}
 
