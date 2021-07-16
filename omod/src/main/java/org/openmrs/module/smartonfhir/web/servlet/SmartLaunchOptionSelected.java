@@ -52,24 +52,26 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 			log.error("Verification exception while trying to determine launchType", e);
 			return;
 		}
-
+		
 		String launchTypeString = null;
-
+		
 		try {
 			launchTypeString = getLaunchTypeString(jwtKeyToken);
-		} catch (VerificationException e) {
+		}
+		catch (VerificationException e) {
 			log.error("Error while extracting the launch type from token", e);
 			return;
 		}
-
+		
 		if (launchTypeString == null) {
 			res.sendError(HttpServletResponse.SC_FORBIDDEN, "Couldn't found scope in Token");
 			return;
 		}
 		
 		if (launchTypeString.contains("encounter") && visitId == null) {
-			res.sendRedirect(res.encodeRedirectURL("/smartonfhir/findVisit.page?app=smartonfhir.search.visit&patientId="
-			        + patientId + "&token=" + URLEncoder.encode(token, StandardCharsets.UTF_8.name())));
+			res.sendRedirect(res.encodeRedirectURL(
+			    req.getContextPath() + "/smartonfhir/findVisit.page?app=smartonfhir.search.visit&patientId=" + patientId
+			            + "&token=" + URLEncoder.encode(token, StandardCharsets.UTF_8.name())));
 			return;
 		}
 		
@@ -112,12 +114,12 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 		
 		return null;
 	}
-
+	
 	private String getLaunchTypeString(String key) throws VerificationException {
 		JsonWebToken appToken;
-
+		
 		appToken = TokenVerifier.create(key, JsonWebToken.class).getToken();
-
+		
 		for (Map.Entry<String, Object> value : appToken.getOtherClaims().entrySet()) {
 			if (value.getKey().equals("launchType")) {
 				return value.getValue().toString();

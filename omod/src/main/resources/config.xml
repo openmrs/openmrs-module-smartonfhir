@@ -77,6 +77,15 @@
 	</filter-mapping>
 
 	<filter>
+		<filter-name>smartSessionLogoutFilter</filter-name>
+		<filter-class>org.openmrs.module.smartonfhir.web.filter.SmartSessionLogoutFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>smartSessionLogoutFilter</filter-name>
+		<url-pattern>*</url-pattern>
+	</filter-mapping>
+
+	<filter>
 		<filter-name>smartAuthenticationFilter</filter-name>
 		<filter-class>org.openmrs.module.smartonfhir.web.filter.SmartAuthenticationFilter</filter-class>
 	</filter>
