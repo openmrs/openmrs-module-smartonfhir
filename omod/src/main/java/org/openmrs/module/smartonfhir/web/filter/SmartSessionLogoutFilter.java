@@ -16,7 +16,6 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 
@@ -25,23 +24,17 @@ import org.apache.http.client.methods.CloseableHttpResponse;
 import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
-import org.keycloak.adapters.AdapterDeploymentContext;
 import org.keycloak.adapters.KeycloakDeploymentBuilder;
-import org.keycloak.adapters.spi.HttpFacade;
-import org.keycloak.adapters.springsecurity.facade.SimpleHttpFacade;
 import org.openmrs.module.smartonfhir.util.KeycloakConfigHolder;
 
 @Slf4j
 public class SmartSessionLogoutFilter implements Filter {
 	
-	private volatile String logoutUrl = null;
-	
-	private volatile AdapterDeploymentContext adapterDeploymentContext = null;
+	private String logoutUrl = null;
 	
 	@Override
 	public void init(FilterConfig filterConfig) {
-		adapterDeploymentContext = new AdapterDeploymentContext(
-		        KeycloakDeploymentBuilder.build(KeycloakConfigHolder.getKeycloakConfig()));
+		logoutUrl = KeycloakDeploymentBuilder.build(KeycloakConfigHolder.getKeycloakConfig()).getLogoutUrl().toTemplate();
 	}
 	
 	@Override
@@ -49,9 +42,9 @@ public class SmartSessionLogoutFilter implements Filter {
 	        throws IOException, ServletException {
 		HttpServletRequest request = (HttpServletRequest) servletRequest;
 		if (request.getRequestURI().contains("/logout")) {
-			keycloakSessionLogout((HttpServletRequest) servletRequest, (HttpServletResponse) servletResponse);
+			keycloakSessionLogout();
 		}
-
+		
 		filterChain.doFilter(servletRequest, servletResponse);
 	}
 	
@@ -60,11 +53,11 @@ public class SmartSessionLogoutFilter implements Filter {
 		
 	}
 	
-	private void keycloakSessionLogout(HttpServletRequest request, HttpServletResponse response) throws IOException {
+	private void keycloakSessionLogout() throws IOException {
 		CloseableHttpClient closeableHttpClient = HttpClientBuilder.create().disableRedirectHandling().build();
 		CloseableHttpResponse closeableHttpResponse = null;
 		try {
-			closeableHttpResponse = closeableHttpClient.execute(new HttpGet(getLogoutUrl(request, response)));
+			closeableHttpResponse = closeableHttpClient.execute(new HttpGet(logoutUrl));
 		}
 		finally {
 			if (closeableHttpResponse != null) {
@@ -78,21 +71,5 @@ public class SmartSessionLogoutFilter implements Filter {
 				closeableHttpClient.close();
 			}
 		}
-	}
-	
-	private String getLogoutUrl(HttpServletRequest request, HttpServletResponse response) {
-		String logoutUrl = this.logoutUrl;
-		if (logoutUrl == null) {
-			synchronized (this) {
-				logoutUrl = this.logoutUrl;
-				if (logoutUrl == null) {
-					HttpFacade httpFacade = new SimpleHttpFacade(request, response);
-					this.logoutUrl = logoutUrl = adapterDeploymentContext.resolveDeployment(httpFacade).getLogoutUrl()
-					        .toString();
-				}
-			}
-		}
-		
-		return logoutUrl;
 	}
 }
