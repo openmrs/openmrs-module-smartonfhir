@@ -25,6 +25,7 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClientBuilder;
 import org.keycloak.adapters.KeycloakDeploymentBuilder;
+import org.keycloak.common.util.KeycloakUriBuilder;
 import org.openmrs.module.smartonfhir.util.KeycloakConfigHolder;
 
 @Slf4j
@@ -34,7 +35,15 @@ public class SmartSessionLogoutFilter implements Filter {
 	
 	@Override
 	public void init(FilterConfig filterConfig) {
-		logoutUrl = KeycloakDeploymentBuilder.build(KeycloakConfigHolder.getKeycloakConfig()).getLogoutUrl().toTemplate();
+		final KeycloakUriBuilder keycloakUriBuilder = KeycloakDeploymentBuilder
+				.build(KeycloakConfigHolder.getKeycloakConfig()).getLogoutUrl();
+
+		if (keycloakUriBuilder != null) {
+			logoutUrl = keycloakUriBuilder.toTemplate();
+		} else {
+			log.error(
+					"Could not find Keycloak configuration file. Please run keycloak server before openmrs to avoid this error");
+		}
 	}
 	
 	@Override
@@ -57,7 +66,9 @@ public class SmartSessionLogoutFilter implements Filter {
 		CloseableHttpClient closeableHttpClient = HttpClientBuilder.create().disableRedirectHandling().build();
 		CloseableHttpResponse closeableHttpResponse = null;
 		try {
-			closeableHttpResponse = closeableHttpClient.execute(new HttpGet(logoutUrl));
+			if (logoutUrl != null) {
+				closeableHttpResponse = closeableHttpClient.execute(new HttpGet(logoutUrl));
+			}
 		}
 		finally {
 			if (closeableHttpResponse != null) {
