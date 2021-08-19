@@ -42,7 +42,7 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 			smartSessionCache.put(patientId, smartSession);
 		}
 		
-		if (launchContext.equals("visit")) {
+		if (launchContext.equals("encounter")) {
 			url = url + visitId;
 			smartSessionCache.put(visitId, smartSession);
 		}
