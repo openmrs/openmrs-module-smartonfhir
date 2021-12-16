@@ -36,13 +36,13 @@ public class SmartSessionLogoutFilter implements Filter {
 	@Override
 	public void init(FilterConfig filterConfig) {
 		final KeycloakUriBuilder keycloakUriBuilder = KeycloakDeploymentBuilder
-				.build(KeycloakConfigHolder.getKeycloakConfig()).getLogoutUrl();
-
+		        .build(KeycloakConfigHolder.getKeycloakConfig()).getLogoutUrl();
+		
 		if (keycloakUriBuilder != null) {
 			logoutUrl = keycloakUriBuilder.toTemplate();
 		} else {
 			log.error(
-					"Could not find Keycloak configuration file. Please run keycloak server before openmrs to avoid this error");
+			    "Could not find Keycloak configuration file. Please run keycloak server before openmrs to avoid this error");
 		}
 	}
 	
