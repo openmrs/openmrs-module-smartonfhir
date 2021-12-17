@@ -42,13 +42,13 @@ public class FindPatientPageControllerTest {
 	
 	public static final String TOKEN_URL = "http://localhost:8180/auth/realms/openmrs/login-actions/action-token?key=123";
 	
-	public static final String HEADING = "";
-	
 	public static final String LABEL = "coreapps.findPatient.app.label";
 	
 	public static final String SHOW_LAST_VIEWED_PATIENT = "true";
 	
 	public static final String REGISTRATION_APP_LINK = "SMART-on-FHIR";
+	
+	public static final String HEADING = "";
 	
 	private UiSessionContext uiSessionContext;
 	

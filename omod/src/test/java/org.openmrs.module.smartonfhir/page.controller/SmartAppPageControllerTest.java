@@ -38,11 +38,11 @@ public class SmartAppPageControllerTest {
 	
 	public static final String EXTENSION_ATTRIBUTE_NAME = "extensions";
 	
-	@Mock
-	private AppFrameworkService appFrameworkService;
-	
 	@Spy
 	private UiSessionContext uiSessionContext = new UiSessionContext();
+	
+	@Mock
+	private AppFrameworkService appFrameworkService;
 	
 	private PageModel pageModel;
 	
