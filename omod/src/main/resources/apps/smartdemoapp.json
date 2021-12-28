@@ -3,13 +3,19 @@
     "id": "smartapps.demoapp",
     "description": "First smart app",
     "order": 1,
+    "config" : {
+      "launchUrl" : "http://127.0.0.1:9090/launch-standalone.html",
+      "launchType" : "standalone",
+      "launchContext" : "",
+      "fhirVersion" : "R4"
+    },
     "extensions": [
       {
         "id": "smartapps.demoappHomepageLink",
         "extensionPointId": "smartAppManagement.apps",
         "type": "link",
         "label": "Demo App",
-        "url": "ms/smartAppSelectorServlet?smartApp=http://127.0.0.1:9090/launch-standalone.html",
+        "url": "smartonfhir/smartAppsRedirect.page?app=smartapps.demoapp",
         "icon": "icon-hdd",
         "requiredPrivilege": "App: smartonfhir.demoappHomepageLink"
       }

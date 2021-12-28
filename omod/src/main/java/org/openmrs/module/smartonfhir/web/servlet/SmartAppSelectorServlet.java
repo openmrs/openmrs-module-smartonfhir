@@ -17,13 +17,14 @@ import java.io.IOException;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
+import org.openmrs.module.smartonfhir.util.FhirBaseAddressStrategy;
 
 public class SmartAppSelectorServlet extends HttpServlet {
 	
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-		String smartAppLaunchURL = req.getParameter("smartApp");
-		String url = smartAppLaunchURL + "?iss=http://localhost:8080/openmrs/ws/fhir2/R4&launch=";
+		FhirBaseAddressStrategy fhirBaseAddressStrategy = new FhirBaseAddressStrategy();
+		String url = fhirBaseAddressStrategy.getBaseSmartLaunchAddress(req);
 		
 		if (StringUtils.isBlank(url)) {
 			resp.sendError(HttpStatus.SC_BAD_REQUEST, "A url must be provided");

@@ -2,7 +2,7 @@
 
 openmrs-module-smartonfhir
 ==========================
-[![Build Status](https://travis-ci.com/openmrs/openmrs-module-smartonfhir.svg?branch=master)](https://travis-ci.com/openmrs/openmrs-module-smartonfhir)
+[![Build Status](https://github.com/openmrs/openmrs-module-smartonfhir/actions/workflows/main.yml/badge.svg)](https://github.com/openmrs/openmrs-module-smartonfhir/actions/workflows/main.yml)
 [![codecov](https://codecov.io/gh/openmrs/openmrs-module-smartonfhir/branch/master/graph/badge.svg)](https://codecov.io/gh/openmrs/openmrs-module-smartonfhir)
 
 Description

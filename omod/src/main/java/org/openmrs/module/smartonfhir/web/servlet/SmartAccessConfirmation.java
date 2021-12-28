@@ -26,31 +26,56 @@ import org.keycloak.crypto.MacSignatureSignerContext;
 import org.keycloak.crypto.SignatureSignerContext;
 import org.keycloak.jose.jws.JWSBuilder;
 import org.keycloak.representations.JsonWebToken;
+import org.openmrs.User;
+import org.openmrs.api.context.Context;
+import org.openmrs.module.smartonfhir.model.SmartSession;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
+import org.openmrs.module.smartonfhir.util.SmartSessionCache;
 
-public class SmartPatientSelected extends HttpServlet {
+public class SmartAccessConfirmation extends HttpServlet {
+	
+	public static final String PATIENT_NAME = "patient";
+	
+	public static final String VISIT_NAME = "visit";
 	
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
 		String token = req.getParameter("token");
-		String patientId = req.getParameter("patientId");
+		String launchId = req.getParameter("launch");
 		
-		if (token == null || patientId == null) {
+		if (token == null) {
 			res.sendError(HttpServletResponse.SC_BAD_REQUEST);
 			return;
 		}
 		JsonWebToken tokenSentBack = new JsonWebToken();
-		tokenSentBack.setOtherClaims("patient", patientId);
+		String decodedUrl = URLDecoder.decode(token, StandardCharsets.UTF_8.name());
+		User user = Context.getAuthenticatedUser();
 		
-		SecretKeySpec hmacSecretKeySpec = new SecretKeySpec(SmartSecretKeyHolder.getSecretKey(), JavaAlgorithm.HS256);
+		if (user == null) {
+			res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", ""));
+			return;
+		}
+		
+		SmartSessionCache smartSessionCache = new SmartSessionCache();
+		SmartSession smartSession = smartSessionCache.get(launchId);
+		
+		if (smartSession.getPatientUuid() != null) {
+			tokenSentBack.setOtherClaims(PATIENT_NAME, smartSession.getPatientUuid());
+		}
+		if (smartSession.getVisitUuid() != null) {
+			tokenSentBack.setOtherClaims(VISIT_NAME, smartSession.getVisitUuid());
+		}
+		
+		tokenSentBack.setSubject(user.getUsername());
+		
+		SecretKeySpec secretKeySpec = new SecretKeySpec(SmartSecretKeyHolder.getSecretKey(), JavaAlgorithm.HS256);
 		KeyWrapper keyWrapper = new KeyWrapper();
 		keyWrapper.setAlgorithm(Algorithm.HS256);
-		keyWrapper.setSecretKey(hmacSecretKeySpec);
+		keyWrapper.setSecretKey(secretKeySpec);
 		SignatureSignerContext signer = new MacSignatureSignerContext(keyWrapper);
 		
 		String appToken = new JWSBuilder().jsonContent(tokenSentBack).sign(signer);
 		String encodedToken = URLEncoder.encode(appToken, StandardCharsets.UTF_8.name());
 		
-		String decodedUrl = URLDecoder.decode(token, StandardCharsets.UTF_8.name());
 		res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", encodedToken));
 	}
 }

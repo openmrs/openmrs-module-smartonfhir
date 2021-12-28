@@ -17,14 +17,35 @@ import java.io.IOException;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
+import org.openmrs.module.smartonfhir.model.SmartSession;
+import org.openmrs.module.smartonfhir.util.FhirBaseAddressStrategy;
+import org.openmrs.module.smartonfhir.util.SmartSessionCache;
 
 public class SmartEhrLaunchServlet extends HttpServlet {
 	
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+		FhirBaseAddressStrategy fhirBaseAddressStrategy = new FhirBaseAddressStrategy();
 		String patientId = req.getParameter("patientId");
-		String url = "http://localhost:9090/launch-standalone.html?iss=http://localhost:8080/openmrs/ws/fhir2/R4&launch="
-		        + patientId;
+		String visitId = req.getParameter("visitId");
+		String launchContext = req.getParameter("launchContext");
+		String url = fhirBaseAddressStrategy.getBaseSmartLaunchAddress(req);
+		
+		SmartSessionCache smartSessionCache = new SmartSessionCache();
+		SmartSession smartSession = new SmartSession();
+		
+		smartSession.setPatientUuid(patientId);
+		smartSession.setVisitUuid(visitId);
+		
+		if (launchContext.equals("patient")) {
+			url = url + patientId;
+			smartSessionCache.put(patientId, smartSession);
+		}
+		
+		if (launchContext.equals("encounter")) {
+			url = url + visitId;
+			smartSessionCache.put(visitId, smartSession);
+		}
 		
 		if (StringUtils.isBlank(url)) {
 			resp.sendError(HttpStatus.SC_BAD_REQUEST, "A url must be provided");

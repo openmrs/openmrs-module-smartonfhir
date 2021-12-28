@@ -1,5 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-		 xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
 	<groupId>org.openmrs.module</groupId>
@@ -239,6 +239,24 @@
 				<artifactId>uiframework-api</artifactId>
 				<version>${uiframeworkVersion}</version>
 				<type>jar</type>
+				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<groupId>com.github.ben-manes.caffeine</groupId>
+				<artifactId>caffeine</artifactId>
+				<version>${caffeineVersion}</version>
+				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.openmrs.module</groupId>
+				<artifactId>fhir2-omod</artifactId>
+				<version>1.2.1</version>
+				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.openmrs.module</groupId>
+				<artifactId>emrapi-api</artifactId>
+				<version>${emrapiVersion}</version>
 				<scope>provided</scope>
 			</dependency>
 		</dependencies>
@@ -612,9 +630,11 @@
 		<lombokVersion>1.18.18</lombokVersion>
 		<openmrsPlatformVersion>2.3.0</openmrsPlatformVersion>
 		<openmrsPlatformToolsVersion>2.4.0</openmrsPlatformToolsVersion>
-		<keycloakVersion>12.0.0</keycloakVersion>
+		<keycloakVersion>14.0.0</keycloakVersion>
 		<uiframeworkVersion>3.15.0</uiframeworkVersion>
 		<appframeworkVersion>2.9</appframeworkVersion>
 		<appuiVersion>1.7</appuiVersion>
+		<caffeineVersion>2.8.2</caffeineVersion>
+		<emrapiVersion>1.29.0</emrapiVersion>
 	</properties>
 </project>

@@ -67,7 +67,17 @@ public class SmartSecretKeyHolder {
 			try (InputStream secretKeyStream = resource.getInputStream()) {
 				secretKey = decoder
 				        .decode(objectMapper.readValue(secretKeyStream, SmartSecretKey.class).getSmartSharedSecretKey());
+				return;
 			}
+		}
+		
+		InputStream secretKeyStream = SmartSecretKeyHolder.class.getClassLoader()
+		        .getResourceAsStream("smart-secret-key.json");
+		
+		if (secretKeyStream != null) {
+			secretKey = decoder
+			        .decode(objectMapper.readValue(secretKeyStream, SmartSecretKey.class).getSmartSharedSecretKey());
+			return;
 		}
 	}
 }
