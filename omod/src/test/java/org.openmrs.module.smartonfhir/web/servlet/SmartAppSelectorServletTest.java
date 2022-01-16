@@ -10,9 +10,10 @@
 package org.openmrs.module.smartonfhir.web.servlet;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.powermock.api.mockito.PowerMockito.when;
+import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 import java.io.IOException;
@@ -63,7 +64,7 @@ public class SmartAppSelectorServletTest {
 		
 		assertThat(response, notNullValue());
 		assertThat(response.getRedirectedUrl(), notNullValue());
-		assertThat(response.getRedirectedUrl().contains(SMART_APP_BASE_URL), equalTo(true));
+		assertThat(response.getRedirectedUrl(), containsString(SMART_APP_BASE_URL));
 		assertThat(response.getRedirectedUrl(), equalTo(BASE_LAUNCH_ADDRESS_R4));
 	}
 	
@@ -75,7 +76,7 @@ public class SmartAppSelectorServletTest {
 		
 		assertThat(response, notNullValue());
 		assertThat(response.getRedirectedUrl(), notNullValue());
-		assertThat(response.getRedirectedUrl().contains(SMART_APP_BASE_URL), equalTo(true));
+		assertThat(response.getRedirectedUrl(), containsString(SMART_APP_BASE_URL));
 		assertThat(response.getRedirectedUrl(), equalTo(BASE_LAUNCH_ADDRESS_R3));
 	}
 	
@@ -87,6 +88,6 @@ public class SmartAppSelectorServletTest {
 		
 		assertThat(response, notNullValue());
 		assertThat(response.getRedirectedUrl(), notNullValue());
-		assertThat(response.getRedirectedUrl().contains("iss="), equalTo(true));
+		assertThat(response.getRedirectedUrl(), containsString("iss="));
 	}
 }

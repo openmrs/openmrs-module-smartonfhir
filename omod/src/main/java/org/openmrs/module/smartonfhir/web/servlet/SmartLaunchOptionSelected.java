@@ -44,7 +44,7 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 		String visitId = getParameter(req, "visitId");
 		
 		if (token == null) {
-			res.sendError(HttpServletResponse.SC_BAD_REQUEST, "Couldn't found token in url");
+			res.sendError(HttpServletResponse.SC_BAD_REQUEST, "Couldn't find token in url");
 			return;
 		}
 		

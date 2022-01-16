@@ -10,11 +10,12 @@
 package org.openmrs.module.smartonfhir.web.servlet;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
+import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.doReturn;
 import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.powermock.api.mockito.PowerMockito.when;
 import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 import javax.crypto.spec.SecretKeySpec;
@@ -104,7 +105,7 @@ public class SmartAccessConfirmationTest {
 		
 		assertThat(response, notNullValue());
 		assertThat(response.getRedirectedUrl(), notNullValue());
-		assertThat(response.getRedirectedUrl().contains(BASE_URL), equalTo(true));
+		assertThat(response.getRedirectedUrl(), containsString(BASE_URL));
 	}
 	
 	@Test
@@ -113,8 +114,8 @@ public class SmartAccessConfirmationTest {
 		
 		assertThat(response, notNullValue());
 		assertThat(response.getRedirectedUrl(), notNullValue());
-		assertThat(response.getRedirectedUrl().contains("key="), equalTo(true));
-		assertThat(response.getRedirectedUrl().contains("app-token="), equalTo(true));
+		assertThat(response.getRedirectedUrl(), containsString("key="));
+		assertThat(response.getRedirectedUrl(), containsString("app-token="));
 	}
 	
 	@Test

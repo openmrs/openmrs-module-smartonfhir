@@ -10,6 +10,7 @@
 package org.openmrs.module.smartonfhir.web.servlet;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.powermock.api.mockito.PowerMockito.doReturn;
@@ -69,8 +70,8 @@ public class SmartLaunchOptionSelectedTest {
 		
 		assertThat(response, notNullValue());
 		assertThat(response.getRedirectedUrl(), notNullValue());
-		assertThat(response.getRedirectedUrl().contains("app=smartonfhir.search.visit"), equalTo(true));
-		assertThat(response.getRedirectedUrl().contains("patientId=12345"), equalTo(true));
+		assertThat(response.getRedirectedUrl(), containsString("app=smartonfhir.search.visit"));
+		assertThat(response.getRedirectedUrl(), containsString("patientId=12345"));
 	}
 	
 	@Test
@@ -82,8 +83,8 @@ public class SmartLaunchOptionSelectedTest {
 		
 		assertThat(response, notNullValue());
 		assertThat(response.getRedirectedUrl(), notNullValue());
-		assertThat(response.getRedirectedUrl().contains("key="), equalTo(true));
-		assertThat(response.getRedirectedUrl().contains("app-token="), equalTo(true));
+		assertThat(response.getRedirectedUrl(), containsString("key="));
+		assertThat(response.getRedirectedUrl(), containsString("app-token="));
 	}
 	
 	@Test
@@ -96,8 +97,8 @@ public class SmartLaunchOptionSelectedTest {
 		
 		assertThat(response, notNullValue());
 		assertThat(response.getRedirectedUrl(), notNullValue());
-		assertThat(response.getRedirectedUrl().contains("key="), equalTo(true));
-		assertThat(response.getRedirectedUrl().contains("app-token="), equalTo(true));
+		assertThat(response.getRedirectedUrl(), containsString("key="));
+		assertThat(response.getRedirectedUrl(), containsString("app-token="));
 	}
 	
 	@Test
@@ -116,6 +117,6 @@ public class SmartLaunchOptionSelectedTest {
 		
 		assertThat(response, notNullValue());
 		assertThat(response.getErrorMessage(), notNullValue());
-		assertThat(response.getErrorMessage(), equalTo("Couldn't found token in url"));
+		assertThat(response.getErrorMessage(), equalTo("Couldn't find token in url"));
 	}
 }
