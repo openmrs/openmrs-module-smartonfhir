@@ -10,8 +10,10 @@
 package org.openmrs.module.smartonfhir.page.controller;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.*;
-import static org.powermock.api.mockito.PowerMockito.*;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.notNullValue;
+import static org.mockito.Mockito.when;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -23,11 +25,15 @@ import java.util.Map;
 
 import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.ObjectNode;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
 import org.mockito.Spy;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.openmrs.Patient;
 import org.openmrs.Visit;
 import org.openmrs.VisitType;
@@ -40,11 +46,8 @@ import org.openmrs.module.coreapps.CoreAppsConstants;
 import org.openmrs.module.coreapps.utils.VisitTypeHelper;
 import org.openmrs.ui.framework.UiUtils;
 import org.openmrs.ui.framework.page.PageModel;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ PatientService.class, VisitService.class, Context.class })
+@RunWith(MockitoJUnitRunner.class)
 public class FindVisitPageControllerTest {
 	
 	private static final String AFTER_SELECTED_URL = "/ms/smartLaunchOptionSelected?app=smart_client&patientId={{patient.uuid}}&token={{token}}";
@@ -86,6 +89,8 @@ public class FindVisitPageControllerTest {
 	
 	private Visit visit;
 	
+	private MockedStatic<Context> contextMockedStatic;
+	
 	@Before
 	public void setup() throws Exception {
 		appDescriptor = new AppDescriptor();
@@ -104,15 +109,18 @@ public class FindVisitPageControllerTest {
 		
 		appDescriptor.getConfig().put("afterSelectedUrl", AFTER_SELECTED_URL);
 		
-		mockStatic(Context.class);
-		mockStatic(PatientService.class);
-		mockStatic(VisitService.class);
+		contextMockedStatic = Mockito.mockStatic(Context.class);
 		
-		doReturn(patientService).when(Context.class, "getPatientService");
-		doReturn(visitService).when(Context.class, "getVisitService");
+		contextMockedStatic.when(Context::getPatientService).thenReturn(patientService);
+		contextMockedStatic.when(Context::getVisitService).thenReturn(visitService);
+		contextMockedStatic.when(() -> Context.hasPrivilege(CoreAppsConstants.PRIVILEGE_PATIENT_VISITS)).thenReturn(true);
 		when(patientService.getPatientByUuid(PATIENT_ID)).thenReturn(patient);
 		when(visitService.getVisitsByPatient(patient)).thenReturn(list);
-		doReturn(true).when(Context.class, "hasPrivilege", CoreAppsConstants.PRIVILEGE_PATIENT_VISITS);
+	}
+	
+	@After
+	public void close() {
+		contextMockedStatic.close();
 	}
 	
 	@Test
@@ -158,7 +166,7 @@ public class FindVisitPageControllerTest {
 		visitService.saveVisitType(visitType);
 		
 		Map<String, Object> typeAttr = new HashMap<>();
-		doReturn(typeAttr).when(visitTypeHelper).getVisitTypeColorAndShortName(visitType);
+		Mockito.lenient().doReturn(typeAttr).when(visitTypeHelper).getVisitTypeColorAndShortName(visitType);
 		
 		findVisitPageController.get(uiSessionContext, pageModel, appDescriptor, null, visitService, PATIENT_ID, TOKEN_URL,
 		    uiSessionContext, visitTypeHelper);
@@ -169,7 +177,7 @@ public class FindVisitPageControllerTest {
 		Map<Integer, Object> result = (Map<Integer, Object>) pageModel.get("visitTypesWithAttr");
 		
 		assertThat(result, notNullValue());
-		assertThat(result.equals(typeAttr), equalTo(true));
+		assertThat(result, equalTo(typeAttr));
 	}
 	
 	@Test
@@ -183,7 +191,7 @@ public class FindVisitPageControllerTest {
 		String result = (String) pageModel.get("afterSelectedUrl");
 		
 		assertThat(result, notNullValue());
-		assertThat(result.contains(UNAFFECTED_AFTER_SELECTED_URL), equalTo(true));
-		assertThat(result.contains(URLEncoder.encode(TOKEN_URL, StandardCharsets.UTF_8.name())), equalTo(true));
+		assertThat(result, containsString(UNAFFECTED_AFTER_SELECTED_URL));
+		assertThat(result, containsString(URLEncoder.encode(TOKEN_URL, StandardCharsets.UTF_8.name())));
 	}
 }

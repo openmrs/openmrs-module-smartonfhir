@@ -10,10 +10,9 @@
 package org.openmrs.module.smartonfhir.page.controller;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.powermock.api.mockito.PowerMockito.doNothing;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
@@ -22,20 +21,21 @@ import java.util.List;
 
 import org.codehaus.jackson.node.JsonNodeFactory;
 import org.codehaus.jackson.node.ObjectNode;
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.openmrs.module.appframework.domain.AppDescriptor;
 import org.openmrs.module.appframework.domain.Extension;
 import org.openmrs.module.appui.UiSessionContext;
 import org.openmrs.module.coreapps.helper.BreadcrumbHelper;
 import org.openmrs.ui.framework.UiUtils;
 import org.openmrs.ui.framework.page.PageModel;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(BreadcrumbHelper.class)
+@RunWith(MockitoJUnitRunner.class)
 public class FindPatientPageControllerTest {
 	
 	public static final String AFTER_SELECTED_URL = "/ms/smartLaunchOptionSelected?app=smart_client&patientId=123";
@@ -62,6 +62,8 @@ public class FindPatientPageControllerTest {
 	
 	private UiUtils ui;
 	
+	private MockedStatic<BreadcrumbHelper> breadcrumbHelperMockedStatic;
+	
 	@Before
 	public void setup() throws Exception {
 		appDescriptor = new AppDescriptor();
@@ -76,8 +78,15 @@ public class FindPatientPageControllerTest {
 		appDescriptor.getConfig().put("label", LABEL);
 		appDescriptor.getConfig().put("showLastViewedPatients", SHOW_LAST_VIEWED_PATIENT);
 		
-		mockStatic(BreadcrumbHelper.class);
-		doNothing().when(BreadcrumbHelper.class, "addBreadcrumbsIfDefinedInApp", appDescriptor, pageModel, ui);
+		breadcrumbHelperMockedStatic = Mockito.mockStatic(BreadcrumbHelper.class);
+		
+		breadcrumbHelperMockedStatic.when(() -> BreadcrumbHelper.addBreadcrumbsIfDefinedInApp(appDescriptor, pageModel, ui))
+		        .then(invocationOnMock -> null);
+	}
+	
+	@After
+	public void close() {
+		breadcrumbHelperMockedStatic.close();
 	}
 	
 	@Test
@@ -88,7 +97,7 @@ public class FindPatientPageControllerTest {
 		assertThat(pageModel, notNullValue());
 		assertThat(pageModel.isEmpty(), equalTo(false));
 		assertThat(pageModel.get("afterSelectedUrl"), notNullValue());
-		assertThat(pageModel.get("afterSelectedUrl").toString().contains(URLEncoder.encode(TOKEN_URL)), equalTo(true));
+		assertThat(pageModel.get("afterSelectedUrl").toString(), containsString(URLEncoder.encode(TOKEN_URL)));
 		assertThat(pageModel.get("heading"), equalTo(HEADING));
 		assertThat(pageModel.get("label"), equalTo(LABEL));
 		assertThat(pageModel.get("showLastViewedPatients"), equalTo(false));
@@ -102,7 +111,7 @@ public class FindPatientPageControllerTest {
 		assertThat(pageModel, notNullValue());
 		assertThat(pageModel.isEmpty(), equalTo(false));
 		assertThat(pageModel.get("afterSelectedUrl"), notNullValue());
-		assertThat(pageModel.get("afterSelectedUrl").toString().contains(URLEncoder.encode(TOKEN_URL)), equalTo(true));
+		assertThat(pageModel.get("afterSelectedUrl").toString(), containsString(URLEncoder.encode(TOKEN_URL)));
 		assertThat(pageModel.get("heading"), equalTo(HEADING));
 		assertThat(pageModel.get("label"), equalTo(LABEL));
 		assertThat(pageModel.get("showLastViewedPatients"), equalTo(false));
