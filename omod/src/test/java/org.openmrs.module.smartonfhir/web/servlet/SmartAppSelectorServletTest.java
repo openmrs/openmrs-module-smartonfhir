@@ -14,22 +14,21 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 import java.io.IOException;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.openmrs.module.smartonfhir.util.FhirBaseAddressStrategy;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ SmartAppSelectorServlet.class, FhirBaseAddressStrategy.class })
+@RunWith(MockitoJUnitRunner.class)
 public class SmartAppSelectorServletTest {
 	
 	private static final String BASE_LAUNCH_ADDRESS_R4 = "http://127.0.0.1:9090/launch-standalone.html?iss=http://demo.org/openmrs/ws/fhir2/R4&launch=";
@@ -44,21 +43,26 @@ public class SmartAppSelectorServletTest {
 	
 	private SmartAppSelectorServlet smartAppSelectorServlet;
 	
-	@Mock
-	private FhirBaseAddressStrategy fhirBaseAddressStrategy;
+	private MockedConstruction<FhirBaseAddressStrategy> fhirBaseAddressStrategyMockedConstruction;
 	
 	@Before
 	public void setup() throws Exception {
 		response = new MockHttpServletResponse();
 		request = new MockHttpServletRequest();
 		smartAppSelectorServlet = new SmartAppSelectorServlet();
-		
-		whenNew(FhirBaseAddressStrategy.class).withNoArguments().thenReturn(fhirBaseAddressStrategy);
+	}
+	
+	@After
+	public void close() {
+		fhirBaseAddressStrategyMockedConstruction.close();
 	}
 	
 	@Test
 	public void shouldReturnCorrectSMARTAppBaseURLForR4() throws IOException {
-		when(fhirBaseAddressStrategy.getBaseSmartLaunchAddress(request)).thenReturn(BASE_LAUNCH_ADDRESS_R4);
+		fhirBaseAddressStrategyMockedConstruction = Mockito.mockConstruction(FhirBaseAddressStrategy.class,
+		    (mock, context) -> {
+			    when(mock.getBaseSmartLaunchAddress(request)).thenReturn(BASE_LAUNCH_ADDRESS_R4);
+		    });
 		
 		smartAppSelectorServlet.doGet(request, response);
 		
@@ -70,7 +74,10 @@ public class SmartAppSelectorServletTest {
 	
 	@Test
 	public void shouldReturnCorrectSMARTAppBaseURLForR3() throws IOException {
-		when(fhirBaseAddressStrategy.getBaseSmartLaunchAddress(request)).thenReturn(BASE_LAUNCH_ADDRESS_R3);
+		fhirBaseAddressStrategyMockedConstruction = Mockito.mockConstruction(FhirBaseAddressStrategy.class,
+		    (mock, context) -> {
+			    when(mock.getBaseSmartLaunchAddress(request)).thenReturn(BASE_LAUNCH_ADDRESS_R3);
+		    });
 		
 		smartAppSelectorServlet.doGet(request, response);
 		
@@ -82,7 +89,10 @@ public class SmartAppSelectorServletTest {
 	
 	@Test
 	public void shouldContainsEveryQuery() throws IOException {
-		when(fhirBaseAddressStrategy.getBaseSmartLaunchAddress(request)).thenReturn(BASE_LAUNCH_ADDRESS_R4);
+		fhirBaseAddressStrategyMockedConstruction = Mockito.mockConstruction(FhirBaseAddressStrategy.class,
+		    (mock, context) -> {
+			    when(mock.getBaseSmartLaunchAddress(request)).thenReturn(BASE_LAUNCH_ADDRESS_R4);
+		    });
 		
 		smartAppSelectorServlet.doGet(request, response);
 		

@@ -13,22 +13,21 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
 
 import java.io.IOException;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
+import org.mockito.MockedConstruction;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.openmrs.module.smartonfhir.util.FhirBaseAddressStrategy;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest({ SmartEhrLaunchServlet.class, FhirBaseAddressStrategy.class })
+@RunWith(MockitoJUnitRunner.class)
 public class SmartEhrLaunchServletTest {
 	
 	private static final String BASE_LAUNCH_ADDRESS = "http://127.0.0.1:9090/launch-standalone.html?iss=http://demo.org/openmrs/ws/fhir2/R4&launch=";
@@ -41,14 +40,13 @@ public class SmartEhrLaunchServletTest {
 	
 	private static final String VISIT_LAUNCH_CONTEXT = "encounter";
 	
-	@Mock
-	private FhirBaseAddressStrategy fhirBaseAddressStrategy;
-	
 	private MockHttpServletResponse response;
 	
 	private MockHttpServletRequest request;
 	
 	private SmartEhrLaunchServlet servlet;
+	
+	private MockedConstruction<FhirBaseAddressStrategy> fhirBaseAddressStrategyMockedConstruction;
 	
 	@Before
 	public void setup() throws Exception {
@@ -58,13 +56,19 @@ public class SmartEhrLaunchServletTest {
 		
 		request.setParameter("patientId", PATIENT_UUID);
 		request.setParameter("visitId", VISIT_UUID);
-		
-		whenNew(FhirBaseAddressStrategy.class).withNoArguments().thenReturn(fhirBaseAddressStrategy);
+	}
+	
+	@After
+	public void close() {
+		fhirBaseAddressStrategyMockedConstruction.close();
 	}
 	
 	@Test
 	public void shouldReturnCorrectURLForPatientContext() throws IOException {
-		when(fhirBaseAddressStrategy.getBaseSmartLaunchAddress(request)).thenReturn(BASE_LAUNCH_ADDRESS);
+		fhirBaseAddressStrategyMockedConstruction = Mockito.mockConstruction(FhirBaseAddressStrategy.class,
+		    (mock, context) -> {
+			    when(mock.getBaseSmartLaunchAddress(request)).thenReturn(BASE_LAUNCH_ADDRESS);
+		    });
 		request.setParameter("launchContext", PATIENT_LAUNCH_CONTEXT);
 		
 		servlet.doGet(request, response);
@@ -74,8 +78,12 @@ public class SmartEhrLaunchServletTest {
 		assertThat(response.getRedirectedUrl().equals(BASE_LAUNCH_ADDRESS + PATIENT_UUID), equalTo(true));
 	}
 	
+	@Test
 	public void shouldReturnCorrectURLForEncounterContext() throws IOException {
-		when(fhirBaseAddressStrategy.getBaseSmartLaunchAddress(request)).thenReturn(BASE_LAUNCH_ADDRESS);
+		fhirBaseAddressStrategyMockedConstruction = Mockito.mockConstruction(FhirBaseAddressStrategy.class,
+		    (mock, context) -> {
+			    when(mock.getBaseSmartLaunchAddress(request)).thenReturn(BASE_LAUNCH_ADDRESS);
+		    });
 		request.setParameter("launchContext", VISIT_LAUNCH_CONTEXT);
 		
 		servlet.doGet(request, response);
@@ -85,12 +93,17 @@ public class SmartEhrLaunchServletTest {
 		assertThat(response.getRedirectedUrl().equals(BASE_LAUNCH_ADDRESS + VISIT_UUID), equalTo(true));
 	}
 	
-	public void shouldReturnErrorWhenURLNotPresent() throws IOException {
-		when(fhirBaseAddressStrategy.getBaseSmartLaunchAddress(request)).thenReturn("");
+	@Test
+	public void shouldReturnErrorWhenLaunchContextNotPresent() throws IOException {
+		fhirBaseAddressStrategyMockedConstruction = Mockito.mockConstruction(FhirBaseAddressStrategy.class,
+		    (mock, context) -> {
+			    when(mock.getBaseSmartLaunchAddress(request)).thenReturn(BASE_LAUNCH_ADDRESS);
+		    });
 		
 		servlet.doGet(request, response);
 		
 		assertThat(response, notNullValue());
-		assertThat(response.getErrorMessage(), equalTo("A url must be provided"));
+		assertThat(response.getErrorMessage(), equalTo("launchContext must be provided"));
 	}
+	
 }

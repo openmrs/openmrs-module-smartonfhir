@@ -14,34 +14,27 @@ import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.mockito.Mockito.when;
-import static org.powermock.api.mockito.PowerMockito.doReturn;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
-import static org.powermock.api.mockito.PowerMockito.whenNew;
-
-import javax.crypto.spec.SecretKeySpec;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.mockito.Mock;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.openmrs.User;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartSession;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
 import org.openmrs.module.smartonfhir.util.SmartSessionCache;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore("javax.crypto.*")
-@PrepareForTest({ Context.class, SmartSessionCache.class, SmartAccessConfirmation.class, SecretKeySpec.class,
-        SmartSecretKeyHolder.class })
+@RunWith(MockitoJUnitRunner.class)
 public class SmartAccessConfirmationTest {
 	
 	private static final String TOKEN = "http://localhost:8180/auth/realms/openmrs/login-actions/action-token?key=abcd&app-token=%7BAPP_TOKEN%7D";
@@ -64,14 +57,17 @@ public class SmartAccessConfirmationTest {
 	
 	private MockHttpServletResponse response;
 	
-	@Mock
-	private SmartSessionCache smartSessionCache;
-	
 	private SmartSession smartSession;
 	
 	private User user;
 	
 	private SmartAccessConfirmation smartAccessConfirmation;
+	
+	private MockedStatic<Context> contextMockedStatic;
+	
+	private MockedStatic<SmartSecretKeyHolder> smartSecretKeyHolderMockedStatic;
+	
+	private MockedConstruction<SmartSessionCache> smartSessionCacheMockedConstruction;
 	
 	@Before
 	public void setup() throws Exception {
@@ -89,14 +85,22 @@ public class SmartAccessConfirmationTest {
 		
 		user.setUuid(USER_UUID);
 		
-		mockStatic(Context.class);
-		mockStatic(SmartSecretKeyHolder.class);
+		contextMockedStatic = Mockito.mockStatic(Context.class);
+		smartSecretKeyHolderMockedStatic = Mockito.mockStatic(SmartSecretKeyHolder.class);
+		smartSessionCacheMockedConstruction = Mockito.mockConstruction(SmartSessionCache.class, (mock, context) -> {
+			when(mock.get(LAUNCH_ID)).thenReturn(smartSession);
+		});
 		
-		doReturn(user).when(Context.class, "getAuthenticatedUser");
-		doReturn(SMART_SECRET_KEY_HOLDER).when(SmartSecretKeyHolder.class, "getSecretKey");
+		contextMockedStatic.when(Context::getAuthenticatedUser).thenReturn(user);
+		smartSecretKeyHolderMockedStatic.when(SmartSecretKeyHolder::getSecretKey).thenReturn(SMART_SECRET_KEY_HOLDER);
 		
-		whenNew(SmartSessionCache.class).withNoArguments().thenReturn(smartSessionCache);
-		when(smartSessionCache.get(LAUNCH_ID)).thenReturn(smartSession);
+	}
+	
+	@After
+	public void close() {
+		contextMockedStatic.close();
+		smartSecretKeyHolderMockedStatic.close();
+		smartSessionCacheMockedConstruction.close();
 	}
 	
 	@Test

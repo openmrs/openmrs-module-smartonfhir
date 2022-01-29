@@ -37,6 +37,11 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 		smartSession.setPatientUuid(patientId);
 		smartSession.setVisitUuid(visitId);
 		
+		if (launchContext == null) {
+			resp.sendError(HttpStatus.SC_BAD_REQUEST, "launchContext must be provided");
+			return;
+		}
+		
 		if (launchContext.equals("patient")) {
 			url = url + patientId;
 			smartSessionCache.put(patientId, smartSession);

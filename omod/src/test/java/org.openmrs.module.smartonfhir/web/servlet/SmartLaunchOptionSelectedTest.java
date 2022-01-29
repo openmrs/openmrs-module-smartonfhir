@@ -13,25 +13,22 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.equalTo;
 import static org.hamcrest.Matchers.notNullValue;
-import static org.powermock.api.mockito.PowerMockito.doReturn;
-import static org.powermock.api.mockito.PowerMockito.mockStatic;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
+import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import org.mockito.junit.MockitoJUnitRunner;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
-import org.powermock.core.classloader.annotations.PowerMockIgnore;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 
-@RunWith(PowerMockRunner.class)
-@PowerMockIgnore("javax.crypto.*")
-@PrepareForTest({ SmartLaunchOptionSelected.class, SmartSecretKeyHolder.class })
+@RunWith(MockitoJUnitRunner.class)
 public class SmartLaunchOptionSelectedTest {
 	
 	private static final String TOKEN_ENCOUNTER = "http://localhost:8180/auth/realms/openmrs/login-actions/action-token?key=eyJhbGciOiJIUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICIzNGQzMTk4Ny0zYjI0LTQ4MzMtOWUwZi1hMWExYTIxYzc5NDUifQ.eyJleHAiOjE2NDEwMTQ0NzAsImlhdCI6MTY0MTAxNDE3MCwianRpIjoiMTVjZDgxYzItMGM5Ni00MGI2LTkyZTUtNGM2Y2MyMWEzZDQ4IiwiaXNzIjoiaHR0cDovL2xvY2FsaG9zdDo4MTgwL2F1dGgvcmVhbG1zL29wZW5tcnMiLCJhdWQiOiJodHRwOi8vbG9jYWxob3N0OjgxODAvYXV0aC9yZWFsbXMvb3Blbm1ycyIsInN1YiI6ImY6ZDllNTk0ZDItMWE5NC00YjNjLTkwZTQtODBhYmI5ODAzOTY4OjEiLCJ0eXAiOiJzbWFydC1wYXRpZW50LXNlbGVjdGlvbiIsIm5vbmNlIjoiMTVjZDgxYzItMGM5Ni00MGI2LTkyZTUtNGM2Y2MyMWEzZDQ4IiwiYXNpZCI6ImRmZTUwMTczLWE1NjQtNDE1ZS1hOGQzLTBiYjNmZDY4MGFkNy5VZDhUS2x2amJoNC45MzBkM2JkYS1iNTY4LTQ1YTItODgyZS05MGQxMTNjNjMxNzciLCJhc2lkIjoiZGZlNTAxNzMtYTU2NC00MTVlLWE4ZDMtMGJiM2ZkNjgwYWQ3LlVkOFRLbHZqYmg0LjkzMGQzYmRhLWI1NjgtNDVhMi04ODJlLTkwZDExM2M2MzE3NyIsInVzZXIiOiJleUpoYkdjaU9pSklVekkxTmlJc0luUjVjQ0lnT2lBaVNsZFVJbjAuZXlKbGVIQWlPakUyTkRFd01UUTBOekFzSW1semN5STZJbWgwZEhBNkx5OXNiMk5oYkdodmMzUTZPREU0TUM5aGRYUm9MM0psWVd4dGN5OXZjR1Z1YlhKeklpd2lZWFZrSWpvaWFIUjBjRG92TDJ4dlkyRnNhRzl6ZERvNE1EZ3dJaXdpYzNWaUlqb2lZV1J0YVc0aUxDSjBlWEFpT2lKemJXRnlkQzExYzJWeWJtRnRaUzEwYjJ0bGJpSXNJbUZ6YVdRaU9pSnpiV0Z5ZEVOc2FXVnVkQ0o5LmV0Wm5BN2JPZEpWWGR5dEhha1VCVEJPZ1BzLWg4WVBkV3hyUDRWZl9fbWMiLCJsYXVuY2hUeXBlIjoiL3BhdGllbnQgL2VuY291bnRlciJ9.SyloT1oqNdLGCPdFTb4CjKQMrvO0Pjhv1vOp5YLaSrI&client_id=smartClient&tab_id=Ud8TKlvjbh4&execution=9e89e1f3-41cd-4d92-946c-d8f56e9af62a&app-token=%7BAPP_TOKEN%7D";
@@ -50,15 +47,21 @@ public class SmartLaunchOptionSelectedTest {
 	
 	private SmartLaunchOptionSelected smartLaunchOptionSelected;
 	
+	private MockedStatic<SmartSecretKeyHolder> smartSecretKeyHolderMockedStatic;
+	
 	@Before
 	public void setup() throws Exception {
 		request = new MockHttpServletRequest();
 		response = new MockHttpServletResponse();
 		smartLaunchOptionSelected = new SmartLaunchOptionSelected();
+		smartSecretKeyHolderMockedStatic = Mockito.mockStatic(SmartSecretKeyHolder.class);
 		
-		mockStatic(SmartSecretKeyHolder.class);
-		
-		doReturn(SMART_SECRET_KEY_HOLDER).when(SmartSecretKeyHolder.class, "getSecretKey");
+		smartSecretKeyHolderMockedStatic.when(SmartSecretKeyHolder::getSecretKey).thenReturn(SMART_SECRET_KEY_HOLDER);
+	}
+	
+	@After
+	public void close() {
+		smartSecretKeyHolderMockedStatic.close();
 	}
 	
 	@Test
