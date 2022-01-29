@@ -42,6 +42,12 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 		String token = getParameter(req, "token");
 		String patientId = getParameter(req, "patientId");
 		String visitId = getParameter(req, "visitId");
+		
+		if (token == null) {
+			res.sendError(HttpServletResponse.SC_BAD_REQUEST, "Couldn't find token in url");
+			return;
+		}
+		
 		String decodedUrl = URLDecoder.decode(token, StandardCharsets.UTF_8.name());
 		
 		String jwtKeyToken = null;
@@ -75,8 +81,8 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 			return;
 		}
 		
-		if (token == null || (patientId == null && visitId == null)) {
-			res.sendError(HttpServletResponse.SC_BAD_REQUEST);
+		if (patientId == null && visitId == null) {
+			res.sendError(HttpServletResponse.SC_BAD_REQUEST, "PatientId must be provided");
 			return;
 		}
 		
