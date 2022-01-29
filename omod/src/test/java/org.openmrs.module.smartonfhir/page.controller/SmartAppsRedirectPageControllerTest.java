@@ -10,7 +10,7 @@
 package org.openmrs.module.smartonfhir.page.controller;
 
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.hamcrest.Matchers.equalTo;
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.notNullValue;
 
 import org.codehaus.jackson.node.JsonNodeFactory;
@@ -63,10 +63,10 @@ public class SmartAppsRedirectPageControllerTest {
 		Redirect result = pageController.get(appDescriptor, PATIENT_UUID, VISIT_UUID);
 		
 		assertThat(result, notNullValue());
-		assertThat(result.getUrl().contains(LAUNCH_URL), equalTo(true));
-		assertThat(result.getUrl().contains(LAUNCH_CONTEXT_PATIENT), equalTo(true));
-		assertThat(result.getUrl().contains(FHIR_VERSION_R4), equalTo(true));
-		assertThat(result.getUrl().contains(EHR_LAUNCH_SERVLET_URL), equalTo(true));
+		assertThat(result.getUrl(), containsString(LAUNCH_URL));
+		assertThat(result.getUrl(), containsString(LAUNCH_CONTEXT_PATIENT));
+		assertThat(result.getUrl(), containsString(FHIR_VERSION_R4));
+		assertThat(result.getUrl(), containsString(EHR_LAUNCH_SERVLET_URL));
 	}
 	
 	@Test
@@ -76,9 +76,9 @@ public class SmartAppsRedirectPageControllerTest {
 		Redirect result = pageController.get(appDescriptor, PATIENT_UUID, VISIT_UUID);
 		
 		assertThat(result, notNullValue());
-		assertThat(result.getUrl().contains(LAUNCH_URL), equalTo(true));
-		assertThat(result.getUrl().contains(FHIR_VERSION_R4), equalTo(true));
-		assertThat(result.getUrl().contains(STANDALONE_LAUNCH_SERVLET_URL), equalTo(true));
+		assertThat(result.getUrl(), containsString(LAUNCH_URL));
+		assertThat(result.getUrl(), containsString(FHIR_VERSION_R4));
+		assertThat(result.getUrl(), containsString(STANDALONE_LAUNCH_SERVLET_URL));
 	}
 	
 	@Test
@@ -88,6 +88,6 @@ public class SmartAppsRedirectPageControllerTest {
 		Redirect result = pageController.get(appDescriptor, PATIENT_UUID, VISIT_UUID);
 		
 		assertThat(result, notNullValue());
-		assertThat(result.getUrl().contains(STANDALONE_LAUNCH_SERVLET_URL), equalTo(true));
+		assertThat(result.getUrl(), containsString(STANDALONE_LAUNCH_SERVLET_URL));
 	}
 }
