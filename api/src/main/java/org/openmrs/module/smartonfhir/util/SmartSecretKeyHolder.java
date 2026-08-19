@@ -19,11 +19,22 @@ import java.util.Base64;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
+import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartSecretKey;
 import org.openmrs.util.OpenmrsUtil;
 
 @Slf4j
 public class SmartSecretKeyHolder {
+
+	/**
+	 * The runtime property the secret is read from, in preference to the configuration file.
+	 * <p>
+	 * A container sets this without a mounted file: the reference application image turns
+	 * {@code OMRS_CONFIG_SMART_LAUNCH_SECRET} into this property, so a distribution can pass the secret
+	 * in its environment rather than writing a JSON file into the application data directory first. The
+	 * file remains supported for a deployment that already has one.
+	 */
+	public static final String SECRET_RUNTIME_PROPERTY = "smart.launch.secret";
 
 	private static final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -42,6 +53,10 @@ public class SmartSecretKeyHolder {
 	}
 
 	private static void loadSecretKey() {
+		if (loadFromRuntimeProperty()) {
+			return;
+		}
+
 		final File file = Paths.get(OpenmrsUtil.getApplicationDataDirectory(), "config", "smart-secret-key.json").toFile();
 
 		if (!file.canRead()) {
@@ -67,5 +82,39 @@ public class SmartSecretKeyHolder {
 		catch (IllegalArgumentException e) {
 			log.error("The value of 'smart_shared_secret_key' in {} is not valid base64", file.getAbsolutePath(), e);
 		}
+	}
+
+	/**
+	 * Reads the secret from {@link #SECRET_RUNTIME_PROPERTY}, returning whether it was both set and
+	 * usable.
+	 * <p>
+	 * A property that is set but unusable returns {@code true}: an operator who configured a secret and
+	 * got it wrong should see that error rather than have the module quietly fall back to a file they
+	 * were not editing.
+	 */
+	private static boolean loadFromRuntimeProperty() {
+		String encoded;
+
+		try {
+			encoded = Context.getRuntimeProperties().getProperty(SECRET_RUNTIME_PROPERTY);
+		}
+		catch (Exception e) {
+			// Reached before the runtime properties are available, which the file path can still serve.
+			return false;
+		}
+
+		if (encoded == null || encoded.trim().isEmpty()) {
+			return false;
+		}
+
+		try {
+			secretKey = Base64.getDecoder().decode(encoded.trim());
+		}
+		catch (IllegalArgumentException e) {
+			log.error("The runtime property {} is not valid base64, so no launch can be verified", SECRET_RUNTIME_PROPERTY,
+			    e);
+		}
+
+		return true;
 	}
 }
