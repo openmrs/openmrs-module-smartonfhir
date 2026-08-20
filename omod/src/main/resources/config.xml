@@ -54,12 +54,19 @@
 		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartEhrLaunchServlet</servlet-class>
 	</servlet>
 
+	<!--
+		The apps a clinician may launch. Read by whatever offers a way to launch them; it never
+		exposes an app's launch URL, which is the registry's business and nobody else's.
+	-->
 	<servlet>
-		<servlet-name>smartAppSelectorServlet</servlet-name>
-		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartAppSelectorServlet</servlet-class>
+		<servlet-name>smartApps</servlet-name>
+		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartAppsServlet</servlet-class>
 	</servlet>
 
-
+	<servlet>
+		<servlet-name>smartPatientSelection</servlet-name>
+		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartPatientSelectionServlet</servlet-class>
+	</servlet>
 
 	<!--
 		Authenticates FHIR requests carrying a SMART access token. Scoped to the FHIR API:
@@ -101,7 +108,7 @@
 		<filter-class>org.openmrs.module.smartonfhir.web.filter.AuthenticationByPassFilter</filter-class>
 		<init-param>
 			<param-name>validUrls</param-name>
-			<param-value>/smartonfhir/smartAccessConfirmation,/ms/smartAccessConfirmation,/ms/smartLaunchOptionSelected</param-value>
+			<param-value>/smartonfhir/smartAccessConfirmation,/ms/smartAccessConfirmation,/ms/smartLaunchOptionSelected,/ms/smartPatientSelection</param-value>
 		</init-param>
 	</filter>
 	<filter-mapping>
@@ -110,6 +117,14 @@
 		<url-pattern>/ms/smartAccessConfirmation</url-pattern>
 		<url-pattern>/ms/smartAccessConfirmation/*</url-pattern>
 		<url-pattern>/ms/smartLaunchOptionSelected</url-pattern>
+		<!--
+			Where the authorization server sends a launch that needs a patient chosen. The screen
+			itself is a frontend module, and the single-page application host will not render any
+			route without a session — it redirects to the login page instead, discarding the launch
+			token. So the launch lands here first: this filter turns the token into a session, and
+			the servlet then redirects to the frontend route with the session already in place.
+		-->
+		<url-pattern>/ms/smartPatientSelection</url-pattern>
 	</filter-mapping>
 
 	<filter>
@@ -122,8 +137,6 @@
 		<url-pattern>/ws/fhir2/*</url-pattern>
 		<url-pattern>/ms/smartEhrLaunchServlet</url-pattern>
 		<url-pattern>/ms/smartEhrLaunchServlet/*</url-pattern>
-		<url-pattern>/ms/smartAppSelectorServlet/</url-pattern>
-		<url-pattern>/ms/smartAppSelectorServlet/*</url-pattern>
 		<url-pattern>/ms/smartAccessConfirmation</url-pattern>
 		<url-pattern>/ms/smartAccessConfirmation/*</url-pattern>
 		<url-pattern>/smartonfhir/smartAccessConfirmation</url-pattern>
