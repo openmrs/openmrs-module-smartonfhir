@@ -17,20 +17,27 @@ import java.io.IOException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 
 import com.nimbusds.jwt.JWTClaimsSet;
+import lombok.extern.slf4j.Slf4j;
+import org.openmrs.Provider;
 import org.openmrs.User;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartSession;
 import org.openmrs.module.smartonfhir.util.SmartLaunchContextService;
 import org.openmrs.module.smartonfhir.util.SmartLaunchTokens;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
+import org.openmrs.util.PrivilegeConstants;
 
+@Slf4j
 public class SmartAccessConfirmation extends HttpServlet {
 
 	public static final String PATIENT_NAME = "patient";
 
 	public static final String VISIT_NAME = "visit";
+
+	public static final String FHIR_USER_NAME = "fhirUser";
 
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
 		String token = req.getParameter("token");
@@ -67,6 +74,15 @@ public class SmartAccessConfirmation extends HttpServlet {
 			claims.claim(VISIT_NAME, smartSession.getVisitUuid());
 		}
 
+		// Who is using the application, as a FHIR reference. SMART puts this in the id_token as fhirUser,
+		// and only OpenMRS can work it out: Keycloak knows a username, and the resource it names is a
+		// Practitioner keyed by the provider record behind that user's person.
+		String fhirUser = fhirUserReference(user);
+
+		if (fhirUser != null) {
+			claims.claim(FHIR_USER_NAME, fhirUser);
+		}
+
 		String appToken = SmartLaunchTokens.sign(claims.build(), SmartSecretKeyHolder.getSecretKey());
 
 		if (appToken == null) {
@@ -77,5 +93,42 @@ public class SmartAccessConfirmation extends HttpServlet {
 		String encodedToken = URLEncoder.encode(appToken, StandardCharsets.UTF_8.name());
 
 		res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", encodedToken));
+	}
+
+	/**
+	 * The {@code Practitioner} reference for a user, or null when there is no such resource.
+	 * <p>
+	 * A user is not a practitioner in OpenMRS; a person is, by having a provider record, and that
+	 * record is what FHIR2 serves as a {@code Practitioner}. An account with no provider -- a clerk, a
+	 * service account -- therefore has no resource to point at, and the claim is left out rather than
+	 * pointed at something that would 404. Reading providers needs a privilege the launching clinician
+	 * may not hold, so it runs under a proxy privilege removed immediately afterwards.
+	 */
+	private String fhirUserReference(User user) {
+		if (user == null || user.getPerson() == null) {
+			return null;
+		}
+
+		Context.addProxyPrivilege(PrivilegeConstants.GET_PROVIDERS);
+
+		try {
+			Collection<Provider> providers = Context.getProviderService().getProvidersByPerson(user.getPerson());
+
+			for (Provider provider : providers) {
+				if (!provider.getRetired() && provider.getUuid() != null) {
+					return "Practitioner/" + provider.getUuid();
+				}
+			}
+
+			return null;
+		}
+		catch (Exception e) {
+			// A launch that works is worth more than a claim that is nice to have.
+			log.warn("Could not resolve a Practitioner for {}; the launch will carry no fhirUser", user.getUsername(), e);
+			return null;
+		}
+		finally {
+			Context.removeProxyPrivilege(PrivilegeConstants.GET_PROVIDERS);
+		}
 	}
 }

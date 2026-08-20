@@ -10,6 +10,7 @@
 package org.openmrs.module.smartonfhir.web.util;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
 
 import ca.uhn.fhir.rest.server.IServerAddressStrategy;
 import org.openmrs.api.context.Context;
@@ -25,7 +26,7 @@ public class FhirBaseAddressStrategy {
 	public String getFhirBaseUrl(HttpServletRequest request) {
 		IServerAddressStrategy addressStrategy = Context.getRegisteredComponent("openmrsFhirAddressStrategy",
 		    IServerAddressStrategy.class);
-		String baseUrl = addressStrategy.determineServerBase(request.getServletContext(), request);
+		String baseUrl = addressStrategy.determineServerBase(request.getServletContext(), asFhirRequest(request));
 
 		if (baseUrl == null) {
 			return null;
@@ -35,8 +36,36 @@ public class FhirBaseAddressStrategy {
 			return baseUrl;
 		}
 
+		return baseUrl + fhirVersion(request);
+	}
+
+	/**
+	 * The request as it would look addressed to the FHIR API, because that is what FHIR2's address
+	 * strategy expects to be handed.
+	 * <p>
+	 * Given the real request -- a launch servlet under {@code /ms/} -- FHIR2 cannot tell which FHIR
+	 * version is being asked for, and logs
+	 * {@code Could not determine FHIR version for URI ... and path ...} at ERROR on every launch before
+	 * returning a base with no version on the end. The launch still worked, because the version was
+	 * appended below, but every launch left an error in the log that looked like a fault and was not.
+	 * Handing it a URI it can read costs nothing and keeps the base FHIR2's own to compute, so the
+	 * {@code iss} an app is given still agrees with the server it will call.
+	 */
+	private HttpServletRequest asFhirRequest(HttpServletRequest request) {
+		final String uri = request.getContextPath() + "/ws/fhir2/" + fhirVersion(request);
+
+		return new HttpServletRequestWrapper(request) {
+
+			@Override
+			public String getRequestURI() {
+				return uri;
+			}
+		};
+	}
+
+	private String fhirVersion(HttpServletRequest request) {
 		String fhirVersion = request.getParameter("fhirVersion");
 
-		return baseUrl + (fhirVersion == null ? DEFAULT_FHIR_VERSION : fhirVersion);
+		return fhirVersion == null || fhirVersion.trim().isEmpty() ? DEFAULT_FHIR_VERSION : fhirVersion.trim();
 	}
 }
