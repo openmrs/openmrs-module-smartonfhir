@@ -155,7 +155,22 @@ public class AuthenticationByPassFilter implements Filter {
 						final String username = userClaims.getSubject();
 
 						if (username == null || username.trim().isEmpty()) {
-							log.error("The launch token names no user");
+							// Two very different situations reach here, and the message has to tell them apart or
+							// it is undiagnosable. An EHR launch mints this token deliberately without a subject --
+							// Keycloak does not know who the clinician is, which is the whole reason it is asking
+							// OpenMRS -- so a 401 here is the flow working: the authorization server treats it as
+							// attempted and falls through to a login form. A standalone launch, by contrast, sets
+							// the subject from the authenticated Keycloak user, so a blank one there means
+							// something upstream lost the user and is worth investigating.
+							//
+							// Everything logged below is what was needed and missing the one time this was seen in
+							// the wild: which request, which token type, whether the subject was absent or blank,
+							// and when the token was issued and expires.
+							log.warn(
+							    "A launch token carrying no user reached {} -- inner token type '{}', subject {}, issued {}, expires {}, issuer '{}'. "
+							            + "For an EHR launch this is expected and the launch continues at the login form; for a standalone launch it is not.",
+							    request.getRequestURI(), userClaims.getClaim("typ"), username == null ? "absent" : "blank",
+							    userClaims.getIssueTime(), userClaims.getExpirationTime(), userClaims.getIssuer());
 							response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
 							return;
 						}
