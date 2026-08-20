@@ -23,32 +23,29 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.nimbusds.jwt.JWTClaimsSet;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang.StringUtils;
-import org.keycloak.jose.jws.JWSInput;
-import org.keycloak.jose.jws.JWSInputException;
-import org.keycloak.jose.jws.crypto.HMACProvider;
-import org.keycloak.representations.JsonWebToken;
 import org.openmrs.api.context.Context;
-import org.openmrs.api.context.ContextAuthenticationException;
+import org.openmrs.module.smartonfhir.auth.SmartTokenCredentials;
+import org.openmrs.module.smartonfhir.util.SmartLaunchTokens;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
-import org.openmrs.module.smartonfhir.web.smart.SmartTokenCredentials;
+import org.openmrs.module.smartonfhir.web.util.SmartLaunchTargets;
 
 @Slf4j
 public class AuthenticationByPassFilter implements Filter {
-	
+
 	public static final String SMART_AUTH_BYPASS = "SMART_AUTH_BYPASS";
-	
+
 	private static final String VALID_URLS_PARAM = "validUrls";
-	
+
 	private static final Pattern KEY_PARAM = Pattern.compile("^key=([^&]*)(?:&|$)");
-	
+
 	private List<String> validUrls = new ArrayList<>(0);
-	
+
 	@Override
 	public void init(FilterConfig filterConfig) {
 		String validUrlsParam = filterConfig.getInitParameter(VALID_URLS_PARAM);
@@ -58,24 +55,24 @@ public class AuthenticationByPassFilter implements Filter {
 				        if (it.startsWith("/") || it.equals("*")) {
 					        return it;
 				        }
-				        
+
 				        return "/" + it;
 			        }).distinct().collect(Collectors.toList());
 		}
 	}
-	
+
 	@Override
 	public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain filterChain)
 	        throws IOException, ServletException {
 		HttpServletRequest request = (HttpServletRequest) servletRequest;
 		HttpServletResponse response = (HttpServletResponse) servletResponse;
-		
+
 		if (request.getRequestedSessionId() != null && !request.isRequestedSessionIdValid()) {
 			Context.logout();
 		}
-		
+
 		String pathInfo = request.getRequestURI();
-		
+
 		boolean isValidRequest = false;
 		if (pathInfo != null) {
 			final String thePathInfo = pathInfo.replaceFirst(request.getContextPath(), "");
@@ -88,83 +85,96 @@ public class AuthenticationByPassFilter implements Filter {
 						return thePathInfo.startsWith(urlStart);
 					}
 				}
-				
+
 				return url.equals(thePathInfo);
 			});
 		}
-		
+
 		if (!isValidRequest) {
 			HttpSession session = request.getSession(false);
 			if (session != null && session.getAttribute(SMART_AUTH_BYPASS) != null) {
-				session.invalidate();
+				// Log out and drop the marker; do not invalidate. Invalidating leaves the
+				// browser holding a cookie for a session that no longer exists, and the only
+				// reason it did not bite here was the getSession() that used to follow it
+				// minting a replacement. SmartLaunchOptionSelected ends the same session the
+				// same way.
 				Context.logout();
-				request.getSession();
+				session.removeAttribute(SMART_AUTH_BYPASS);
 			}
-			
+
 			filterChain.doFilter(request, response);
 			return;
 		}
-		
+
 		if (!Context.isAuthenticated()) {
 			final String tokenParam = request.getParameter("token");
-			
+
+			// Read exactly as SmartLaunchOptionSelected reads it. This used to search the
+			// container-decoded parameter for "key=" while the servlet decoded once more before parsing,
+			// so a doubly-encoded key was invisible here and visible there: this filter attempted no
+			// authentication and the servlet proceeded anyway. It also matched any parameter merely
+			// ending in "key", so ?monkey=x&key=real yielded x.
+			final String key = SmartLaunchTargets.parameterFrom(SmartLaunchTargets.decodeLaunchTarget(tokenParam), "key");
+
 			if (tokenParam != null) {
-				int keyPos = tokenParam.indexOf("key=");
-				if (keyPos >= 0) {
-					Matcher m = KEY_PARAM.matcher(tokenParam.substring(keyPos));
-					if (m.find()) {
-						final String key = m.group(1);
-						
-						final String userToken;
-						try {
-							JWSInput jwsInput = new JWSInput(key);
-							JsonWebToken webToken = jwsInput.readJsonContent(JsonWebToken.class);
-							
-							if (!webToken.isActive()) {
-								log.error("Token has expired");
-								response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
-								return;
-							}
-							
-							userToken = (String) webToken.getOtherClaims().get("user");
-						}
-						catch (JWSInputException e) {
-							log.error("Error while reading JWS token", e);
+				if (key == null) {
+					// Left silently to the chain before, so an operator debugging a launch that dies at the
+					// picker had nothing to look at. Still fail-closed: the servlets check
+					// Context.isAuthenticated() themselves.
+					log.warn("A request to a launch URL carried a token with no readable key; not authenticating it");
+				} else {
+					{
+
+						// The outer token is the authorization server's action token, signed with a key
+						// this module does not hold, so it is read but not trusted. It carries a nested
+						// token that is signed with the shared secret; that one is verified below, and it
+						// is what establishes who the user is.
+						JWTClaimsSet outerClaims = SmartLaunchTokens.readUnverifiedClaims(key);
+
+						if (outerClaims == null) {
 							response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
 							return;
 						}
-						
-						if (userToken == null) {
-							log.error("Could not read user entry from token");
+
+						Object userTokenClaim = outerClaims.getClaim("user");
+
+						if (userTokenClaim == null) {
+							log.error("Could not read the user entry from the launch token");
 							response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
 							return;
 						}
-						
-						final String username;
-						try {
-							JWSInput jwsInput = new JWSInput(userToken);
-							if (!HMACProvider.verify(jwsInput, SmartSecretKeyHolder.getSecretKey())) {
-								log.error("Error validating user token");
-								response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
-								return;
-							}
-							
-							JsonWebToken webToken = jwsInput.readJsonContent(JsonWebToken.class);
-							username = webToken.getSubject();
-						}
-						catch (JWSInputException e) {
-							log.error("Error while reading user token", e);
+
+						JWTClaimsSet userClaims = SmartLaunchTokens.verify(userTokenClaim.toString(),
+						    SmartSecretKeyHolder.getSecretKey());
+
+						if (userClaims == null) {
 							response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
 							return;
 						}
-						
+
+						final String username = userClaims.getSubject();
+
+						if (username == null || username.trim().isEmpty()) {
+							log.error("The launch token names no user");
+							response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+							return;
+						}
+
 						try {
 							Context.authenticate(new SmartTokenCredentials(username));
-							Context.getUserContext().setLocation(Context.getLocationService().getDefaultLocation());
+
+							// Marked immediately, before anything that can throw. The teardown below keys off
+							// this attribute, and setting it after the location lookup meant an
+							// APIAuthenticationException from getDefaultLocation -- a sibling of
+							// ContextAuthenticationException, so not caught here before -- left the session
+							// authenticated and unmarked, which is to say authenticated forever.
 							request.getSession().setAttribute(SMART_AUTH_BYPASS, true);
+
+							Context.getUserContext().setLocation(Context.getLocationService().getDefaultLocation());
 						}
-						catch (ContextAuthenticationException e) {
+						catch (Exception e) {
 							log.error("Error while logging in as user {}", username, e);
+							Context.logout();
 							response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
 							return;
 						}
@@ -172,10 +182,10 @@ public class AuthenticationByPassFilter implements Filter {
 				}
 			}
 		}
-		
+
 		filterChain.doFilter(request, response);
 	}
-	
+
 	@Override
 	public void destroy() {
 	}

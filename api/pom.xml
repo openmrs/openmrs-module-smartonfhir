@@ -21,6 +21,20 @@
 			<groupId>org.openmrs.module</groupId>
 			<artifactId>fhir2-api</artifactId>
 		</dependency>
+		<!-- Verifies SMART access tokens and signs the launch handshake. -->
+		<dependency>
+			<groupId>com.nimbusds</groupId>
+			<artifactId>nimbus-jose-jwt</artifactId>
+		</dependency>
+		<!-- AuthenticationCredentials only; the web scheme it pairs with stays in the omod. -->
+		<dependency>
+			<groupId>org.openmrs.module</groupId>
+			<artifactId>authentication-api</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+		</dependency>
 	</dependencies>
 
 	<build>
