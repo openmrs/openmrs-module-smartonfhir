@@ -9,7 +9,6 @@
  */
 package org.openmrs.module.smartonfhir.web.servlet;
 
-import javax.crypto.spec.SecretKeySpec;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -19,63 +18,65 @@ import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
-import org.keycloak.crypto.Algorithm;
-import org.keycloak.crypto.JavaAlgorithm;
-import org.keycloak.crypto.KeyWrapper;
-import org.keycloak.crypto.MacSignatureSignerContext;
-import org.keycloak.crypto.SignatureSignerContext;
-import org.keycloak.jose.jws.JWSBuilder;
-import org.keycloak.representations.JsonWebToken;
+import com.nimbusds.jwt.JWTClaimsSet;
 import org.openmrs.User;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartSession;
+import org.openmrs.module.smartonfhir.util.SmartLaunchContextService;
+import org.openmrs.module.smartonfhir.util.SmartLaunchTokens;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
-import org.openmrs.module.smartonfhir.util.SmartSessionCache;
 
 public class SmartAccessConfirmation extends HttpServlet {
-	
+
 	public static final String PATIENT_NAME = "patient";
-	
+
 	public static final String VISIT_NAME = "visit";
-	
+
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
 		String token = req.getParameter("token");
 		String launchId = req.getParameter("launch");
-		
+
 		if (token == null) {
 			res.sendError(HttpServletResponse.SC_BAD_REQUEST);
 			return;
 		}
-		JsonWebToken tokenSentBack = new JsonWebToken();
 		String decodedUrl = URLDecoder.decode(token, StandardCharsets.UTF_8.name());
 		User user = Context.getAuthenticatedUser();
-		
+
 		if (user == null) {
+			// Not logged in yet: hand control back with no app token so the flow can
+			// prompt for credentials.
 			res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", ""));
 			return;
 		}
-		
-		SmartSessionCache smartSessionCache = new SmartSessionCache();
-		SmartSession smartSession = smartSessionCache.get(launchId);
-		
+
+		// Single use, and only by the user the handle was issued to.
+		SmartSession smartSession = new SmartLaunchContextService().redeem(launchId,
+		    SmartLaunchContextService.identify(user));
+
+		if (smartSession == null) {
+			res.sendError(HttpServletResponse.SC_BAD_REQUEST, "Unknown launch");
+			return;
+		}
+
+		JWTClaimsSet.Builder claims = new JWTClaimsSet.Builder().subject(SmartLaunchContextService.identify(user));
+
 		if (smartSession.getPatientUuid() != null) {
-			tokenSentBack.setOtherClaims(PATIENT_NAME, smartSession.getPatientUuid());
+			claims.claim(PATIENT_NAME, smartSession.getPatientUuid());
 		}
 		if (smartSession.getVisitUuid() != null) {
-			tokenSentBack.setOtherClaims(VISIT_NAME, smartSession.getVisitUuid());
+			claims.claim(VISIT_NAME, smartSession.getVisitUuid());
 		}
-		
-		tokenSentBack.setSubject(user.getUsername());
-		
-		SecretKeySpec secretKeySpec = new SecretKeySpec(SmartSecretKeyHolder.getSecretKey(), JavaAlgorithm.HS256);
-		KeyWrapper keyWrapper = new KeyWrapper();
-		keyWrapper.setAlgorithm(Algorithm.HS256);
-		keyWrapper.setSecretKey(secretKeySpec);
-		SignatureSignerContext signer = new MacSignatureSignerContext(keyWrapper);
-		
-		String appToken = new JWSBuilder().jsonContent(tokenSentBack).sign(signer);
+
+		String appToken = SmartLaunchTokens.sign(claims.build(), SmartSecretKeyHolder.getSecretKey());
+
+		if (appToken == null) {
+			res.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR, "Could not issue the launch token");
+			return;
+		}
+
 		String encodedToken = URLEncoder.encode(appToken, StandardCharsets.UTF_8.name());
-		
+
 		res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", encodedToken));
 	}
 }

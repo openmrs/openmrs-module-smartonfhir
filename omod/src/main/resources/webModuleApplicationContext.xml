@@ -16,6 +16,9 @@
   		    http://www.springframework.org/schema/context
   		    http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
-	<context:component-scan base-package="org.openmrs.module.smartonfhir.web"/>
+	<!-- Only one AuthenticationScheme bean may exist, so ours is registered by the authentication module instead. -->
+	<context:component-scan base-package="org.openmrs.module.smartonfhir.web">
+		<context:exclude-filter type="assignable" expression="org.openmrs.api.context.AuthenticationScheme"/>
+	</context:component-scan>
 
 </beans>

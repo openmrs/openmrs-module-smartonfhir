@@ -7,16 +7,30 @@
  * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
  * graphic logo is a trademark of OpenMRS Inc.
  */
-package org.openmrs.module.smartonfhir.web;
+package org.openmrs.module.smartonfhir.model;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class SmartSecretKey {
-	
+
 	@JsonProperty(value = "smart-shared-secret-key", required = true)
 	private String smartSharedSecretKey;
+
+	/**
+	 * Deliberately not the generated one.
+	 * <p>
+	 * Lombok's {@code @Data} produced a {@code toString} over the base64 shared secret, which is one
+	 * {@code log.debug("loaded {}", key)} or one interpolated exception message away from writing the
+	 * HMAC secret into a log file. Nothing in the type warned about it.
+	 */
+	@Override
+	public String toString() {
+		return "SmartSecretKey(***)";
+	}
 }
