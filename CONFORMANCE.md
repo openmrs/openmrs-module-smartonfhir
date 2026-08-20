@@ -30,7 +30,7 @@ implement fails in a way that looks like the app's fault.
 | Public clients | **Yes** | |
 | Confidential clients, symmetric (client secret) | **Yes** | |
 | Confidential clients, asymmetric (`private_key_jwt`) | **Advertised, untested** | `token_endpoint_auth_methods_supported` includes `private_key_jwt`. Keycloak supports it; this project has never exercised it. Treat as unverified. |
-| CORS on discovery and token endpoints | **Untested** | The realm sets web origins permissively for development. Not verified for a browser-only app. |
+| CORS on discovery and token endpoints | **Yes** | Measured with a preflight from a third-party origin. The FHIR API answers `Access-Control-Allow-Origin: *` and permits the `Authorization` header; the discovery document answers `*`; Keycloak's token endpoint echoes the requesting origin and permits `Authorization`. A browser-only application on another origin can therefore complete the handshake and read the record. |
 
 ## Scopes and launch context
 
