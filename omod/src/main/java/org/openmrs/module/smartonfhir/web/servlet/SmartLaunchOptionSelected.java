@@ -27,6 +27,7 @@ import org.openmrs.module.smartonfhir.util.SmartLaunchTokens;
 import org.openmrs.module.smartonfhir.util.SmartOAuth2ConfigHolder;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
 import org.openmrs.module.smartonfhir.web.filter.AuthenticationByPassFilter;
+import org.openmrs.module.smartonfhir.web.util.SmartFhirUser;
 import org.openmrs.module.smartonfhir.web.util.SmartLaunchTargets;
 import org.springframework.util.MultiValueMap;
 import org.springframework.web.util.UriComponents;
@@ -83,6 +84,15 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 		}
 		if (visitId != null) {
 			claims.claim("visit", visitId);
+		}
+
+		// The same claim the EHR launch carries. Without it a standalone launch granted the fhirUser scope
+		// and then issued an id_token without the claim -- which Inferno's STU2.2 suite fails, correctly:
+		// an application that asked who is using it was told nothing.
+		String fhirUser = SmartFhirUser.reference(Context.getAuthenticatedUser());
+
+		if (fhirUser != null) {
+			claims.claim("fhirUser", fhirUser);
 		}
 
 		String appToken = SmartLaunchTokens.sign(claims.build(), SmartSecretKeyHolder.getSecretKey());
