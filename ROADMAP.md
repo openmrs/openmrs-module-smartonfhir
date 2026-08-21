@@ -36,14 +36,17 @@ ignored — a smuggled one does not change where the browser goes.
 
 ### 3. ~~No app registry~~ — done
 
-Apps are recorded in `config/smart-apps.json`, read by `SmartAppRegistry`, and listed for the frontend
-by `SmartAppsServlet` — without launch URLs or client ids, which a chart screen has no use for. An
-unregistered app answers 404, and no registry file means nothing is launchable rather than a fallback
-to a caller-supplied address.
+Apps are declared in the runtime properties as `smart.app.<id>.<field>`, read by `SmartAppRegistry`,
+and listed for the frontend by `SmartAppsServlet` — without launch URLs or client ids, which a chart
+screen has no use for. An unregistered app answers 404, and nothing declared means nothing is
+launchable rather than a fallback to a caller-supplied address. Integrating an app therefore costs a
+deployment a few variables and no file mount, and `SmartAppRegistry.getProblems()` says what was
+refused, so a misspelled variable is visible without reading the server log.
 
 Not done, and worth doing if apps ever need managing at runtime: there is no UI for editing the
-registry, and no per-user or per-role restriction on which apps a given clinician may launch. Both were
-out of scope for closing the open redirector.
+registry, no per-user or per-role restriction on which apps a given clinician may launch, and a change
+takes a restart, since OpenMRS reads the runtime properties once at startup. All three were out of
+scope for closing the open redirector.
 
 ### 4. ~~No way to start an EHR launch from O3~~ — done
 

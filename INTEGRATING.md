@@ -142,28 +142,27 @@ registered and starts a launch for the patient in the chart. The menu is hidden 
 registered.
 
 **Register your app in the registry as well as at Keycloak.** Keycloak knows your `client_id` and
-redirect URI; OpenMRS needs to know your *launch* URL. Add an entry to
-`{application data directory}/config/smart-apps.json`:
+redirect URI; OpenMRS needs to know your *launch* URL. That goes in the runtime properties, as
+`smart.app.<id>.<field>`:
 
-```json
-{
-  "apps": [
-    {
-      "id": "risk-dashboard",
-      "name": "Patient Risk Dashboard",
-      "description": "Shown in the chart when a clinician chooses an app",
-      "clientId": "risk-dashboard",
-      "launchUrl": "https://risk.example.org/launch",
-      "launchContext": "patient"
-    }
-  ]
-}
+```properties
+smart.app.riskdashboard.name          = Patient Risk Dashboard
+smart.app.riskdashboard.description   = Shown in the chart when a clinician chooses an app
+smart.app.riskdashboard.clientid      = risk-dashboard
+smart.app.riskdashboard.launchurl     = https://risk.example.org/launch
+smart.app.riskdashboard.launchcontext = patient
 ```
 
-`id` is how a launch names your app, `launchUrl` is where the browser is sent. An app that is not in
-this file cannot be launched: the launch address is looked up here rather than supplied by whoever
-starts the launch, because it used to be a request parameter and that made the servlet an open
-redirector — a single-use launch handle delivered to any host named in the URL.
+The id in the key is how a launch names your app, and `launchurl` is where the browser is sent — the
+only field you cannot leave out. An app the deployment has not declared cannot be launched: the
+address is looked up rather than supplied by whoever starts the launch, because it used to be a
+request parameter and that made the servlet an open redirector — a single-use launch handle delivered
+to any host named in the URL.
+
+Ask the deployment to set these however it sets its other runtime properties; on the reference
+application image that is `OMRS_EXTRA_SMART_APP_RISKDASHBOARD_LAUNCHURL` and no file at all. A
+restart applies them, and `{openmrs}/ms/smartApps` shows an administrator what was registered and
+what was refused, which is the first place to look if your app is missing from the menu.
 
 The launch is then started by sending the clinician's browser to:
 
