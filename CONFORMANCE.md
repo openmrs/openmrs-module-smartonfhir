@@ -75,6 +75,29 @@ one. The rows above still record what happens if you try it.
 **Not implemented.** No `Brand` or `Endpoint` resources are published. Relevant only for patient-facing
 app directories.
 
+## Measured by Inferno
+
+Run against **Inferno's SMART App Launch STU2.2** suite, Standalone Launch group, on 2026-08-21 --
+the first time anything outside this project has read it:
+
+**24 pass, 2 fail.** Both failures are `standalone_auth_tls` and `standalone_token_tls`, "Server did not
+support any allowed TLS versions", which is a local deployment served over plain HTTP rather than a
+conformance defect. Everything else passed: discovery and its capabilities, CORS on `.well-known`,
+`metadata`, the token endpoint and the userinfo path, the redirect, code receipt, token exchange, token
+response body and headers, OpenID discovery, JWKS retrieval, id_token header and payload validation, and
+refresh.
+
+It found one real defect, which is fixed. A standalone launch granted the `fhirUser` scope and then
+issued an id_token **without the claim** -- `ID token does not contain fhirUser claim`. The resolver
+lived in the EHR-launch servlet, so the standalone path never ran it; the two paths built different claim
+sets. Nothing here caught it because the application this project ships does not read `fhirUser`. After
+the fix the suite reports 24 pass and the two TLS failures, with `smart_openid_fhir_user_claim` and
+`smart_cors_openid_fhir_user_claim` both passing.
+
+Not yet run: the **EHR Launch**, **Backend Services** and **Token Introspection** groups. Backend
+Services is not implemented at all, and introspection is only advertised where a deployment configures
+it, so both are expected to fail; the EHR Launch group is the one worth running next.
+
 ## Where this document is enforced
 
 - `SmartConfigServlet.CAPABILITIES` — the claimed capability list, with a comment per claim recording
