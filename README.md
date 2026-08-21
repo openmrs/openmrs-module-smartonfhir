@@ -77,7 +77,9 @@ and leaves every SMART endpoint dark.
 
 ## Configuration
 
-Three JSON files under `<application data directory>/config`, and two runtime properties.
+Three JSON files under `<application data directory>/config`, and the runtime properties that
+override them. Either route works on its own, and they can be mixed — see
+[Configuring from the environment instead](#configuring-from-the-environment-instead).
 
 Every key below is spelled the way the code binds it. The config classes ignore unknown properties,
 so **a misspelled key is discarded in silence** rather than reported. All of them are hyphenated, not
@@ -130,31 +132,123 @@ Generate one with:
 openssl rand -base64 32
 ```
 
-### 3. `config/smart-apps.json` — the launchable apps
+### 3. `smart.app.*` — the launchable apps
 
 Which apps may be launched from a chart, and where each one's launch is sent. An EHR launch names an
-app by `id` and the address is looked up here; **an app absent from this file cannot be launched at
-all.** That is the point — the launch URL used to come from a request parameter, which made the launch
-endpoint an open redirector for single-use launch handles.
+app by id and the address is looked up here; **an app this deployment has not declared cannot be
+launched at all.** That is the point — the launch URL used to come from a request parameter, which made
+the launch endpoint an open redirector for single-use launch handles.
+
+In `openmrs-runtime.properties`, as `smart.app.<id>.<field>`, where the id is yours to choose:
+
+```properties
+smart.app.growthchart.name          = Growth Chart
+smart.app.growthchart.description   = Plots weight and height against WHO reference curves
+smart.app.growthchart.clientid      = growth-chart
+smart.app.growthchart.launchurl     = https://growth.example.org/launch
+smart.app.growthchart.launchcontext = patient
+```
+
+`launchurl` is the only field an app cannot do without; an app declared without one is dropped rather
+than listed, because it would otherwise appear in a list of apps and then fail when chosen.
+`launchcontext` is `patient` (the default) or `encounter`, and a launch asking for something else is
+refused. `clientid` is recorded so a deployment can tell which Keycloak registration an app belongs to;
+the launch does not use it, since the app presents its own.
+
+The field names are lower case and unpunctuated — `launchurl`, not `launchUrl`. That is not a style
+choice: the image lower-cases the variables it turns into properties, so a camel-cased key would arrive
+as something no reader is looking for.
+
+Runtime properties rather than a file of the module's own, because that is where OpenMRS keeps
+server-side configuration — the same file `InitializationFilter` writes at setup — and because every
+deployment already has a way to set them. Global properties were the other candidate and are
+deliberately not used: those are editable through the administration UI, and a launch allowlist the web
+tier can rewrite gives back much of what looking the address up was for.
+
+### Configuring from the environment instead
+
+Every key in the two files above that a container is likely to set has a runtime property, so a
+deployment need not write JSON into a volume to say two strings. In `openmrs-runtime.properties`:
+
+```properties
+smart.issuer=https://keycloak.example.org/realms/openmrs
+smart.audience=https://openmrs.example.org/openmrs/ws/fhir2/R4
+smart.jwks.uri=http://keycloak:8080/realms/openmrs/protocol/openid-connect/certs
+smart.advertised.jwks.uri=https://keycloak.example.org/realms/openmrs/protocol/openid-connect/certs
+smart.username.claim=preferred_username
+smart.launch.secret=<base64, at least 256 bits>
+```
+
+The reference application image maps environment variables onto these, so no properties file need be
+edited by hand: it takes every variable named `OMRS_EXTRA_<NAME>`, drops the prefix, lower-cases the
+rest and turns `_` into `.`, then turns any resulting `..` back into `_`. So `OMRS_EXTRA_SMART_ISSUER`
+arrives as `smart.issuer`, and a property that genuinely contains an underscore is written `__`.
+
+| property | overrides |
+|---|---|
+| `smart.issuer` | `issuer` in `smart-oauth2.json` |
+| `smart.audience` | `audience` |
+| `smart.jwks.uri` | `jwks-uri` |
+| `smart.advertised.jwks.uri` | `advertised-jwks-uri` |
+| `smart.username.claim` | `username-claim` |
+| `smart.launch.secret` | `smart-shared-secret-key` in `smart-secret-key.json` |
+
+**The two sources layer.** The file is read first and each property then replaces only the key it
+names, so setting `smart.issuer` leaves the rest of `smart-oauth2.json` — including
+`allowed-clock-skew-seconds` and any explicit endpoint, which no property covers — exactly as it was.
+A file and an environment can also each supply half of what is required: a file naming only the
+issuer plus `smart.audience` in the environment is a complete configuration, where neither was alone.
+
+`issuer` and `audience` are still both required, from whichever source. The startup log names the
+properties it applied and whether they overrode a file, so check there when a value is not the one
+you expected:
+
+```
+SMART on FHIR configured for issuer https://... and audience https://...; smart.issuer from runtime properties over smart-oauth2.json
+```
+
+The launchable apps of section 3 are properties throughout, so the same rule applies to them:
+
+```bash
+OMRS_EXTRA_SMART_APP_GROWTHCHART_LAUNCHURL=https://growth.example.org/launch
+OMRS_EXTRA_SMART_APP_GROWTHCHART_NAME=Growth Chart
+```
+
+**An app id set this way cannot contain a hyphen,** because `_` becomes `.` and nothing maps to `-`.
+Write `growth_chart` (as `..._APP_GROWTH__CHART_...`) if you want a word break in the id.
+
+**Un-registering an app is not symmetrical, and this catches people.** The image appends what it
+derives into `{data directory}/openmrs-runtime.properties` and keeps whatever that file already had, so
+the property outlives the variable: deleting `OMRS_EXTRA_SMART_APP_GROWTHCHART_LAUNCHURL` from the
+environment and recreating the container leaves `smart.app.growthchart.launchurl` sitting in the file
+on the data volume, and the app stays registered. To remove an app, delete its lines from that file.
+This is the image's behaviour rather than the module's, and it applies to every `smart.*` property on
+this page.
+
+**Changing any of these needs a restart.** OpenMRS reads the runtime properties into memory once at
+startup and never re-reads the file, so no module can pick up an edit while running.
+
+### When an app does not appear
+
+Every declaration the registry refuses — a key naming no field, a field it does not recognise, an app
+with nowhere to launch — is logged, and is also kept and served to administrators at
+`/openmrs/ms/smartApps` alongside the list itself:
 
 ```json
 {
-  "apps": [
-    {
-      "id": "growth-chart",
-      "name": "Growth Chart",
-      "description": "Plots weight and height against WHO reference curves",
-      "clientId": "growth-chart",
-      "launchUrl": "https://growth.example.org/launch",
-      "launchContext": "patient"
-    }
+  "apps": [ ... ],
+  "problems": [
+    "Ignoring runtime property 'smart.app.vitals.launchcontxt': 'launchcontxt' is not a field of a SMART app registration"
   ]
 }
 ```
 
-`id` and `launchUrl` are required; an entry missing either is dropped, because it would otherwise
-appear in a list of apps and then fail when chosen. `launchContext` is `patient` (the default) or
-`encounter`, and a launch asking for something else is refused.
+`problems` is present only for a user holding *View Administration Functions*, since these messages
+name the property keys the deployment set. Note what that is worth in practice: the reference
+application's demo roles are broad, and `Organizational: Doctor` in the demo data holds that privilege
+along with some three hundred others, so treat this as keeping the report out of an ordinary response
+rather than as confidentiality. It exists because a misspelled variable is otherwise invisible: the app
+simply never appears, which looks exactly like a module that ignores the properties altogether.
 
 ### 4. Register the bearer scheme
 
@@ -166,7 +260,33 @@ authentication.scheme=smartBearer
 authentication.scheme.smartBearer.type=org.openmrs.module.smartonfhir.web.smart.SmartBearerTokenAuthenticationScheme
 ```
 
-`smartBearer` is `SmartBearerCredentials.SCHEME_ID`; the two strings must match.
+The id is yours to choose. What has to match is the two keys — `authentication.scheme=<id>` and
+`authentication.scheme.<id>.type` — and nothing else: `DelegatingAuthenticationScheme.authenticate()`
+asks for the configured scheme with no argument, so the id inside the credentials is never used to route
+and need not equal `SmartBearerCredentials.SCHEME_ID`. Lower case is the safer choice, since these two
+keys can then come from `OMRS_EXTRA_*`, and they are the only authentication properties this module
+needs — it asks for no whitelist, so a deployment's `authentication.whiteList` remains whatever that
+deployment wants it to be.
+
+**This makes the scheme primary for every `Context.authenticate` call in the deployment, not only for
+SMART ones.** The authentication module has one scheme, chosen by that property, and does not route by
+credential type — which is the only reason this module needs the slot at all. Non-SMART credentials are
+passed on:
+
+```properties
+# The scheme to hand anything that is not a SMART token. Optional.
+authentication.scheme.smartbearer.config.delegate=<the id of your previous scheme>
+```
+
+Unset, the delegate is a plain `UsernamePasswordAuthenticationScheme` — which is exactly what the
+authentication module itself falls back to when `authentication.scheme` is blank, so a deployment that
+had not configured a scheme loses nothing. **A deployment that had one must name it here**, or setting
+`authentication.scheme` to this scheme silently replaces it with username and password.
+
+None of this is required by SMART App Launch. The specification asks that the FHIR server accept a
+bearer token and enforce scopes; how a token becomes an OpenMRS principal is this module's business, and
+going through `Context.authenticate` is what gives a request a real `UserContext`, its privileges and its
+audit trail rather than a session assembled by hand.
 
 ### Check it came up
 
@@ -460,7 +580,24 @@ The launch and token mechanics are above; these are the rest.
 exactly one bean. Registering ours as `@Component` silently disabled the authentication module with
 `Multiple authentication schemes overrides`. `webModuleApplicationContext.xml` therefore excludes
 `AuthenticationScheme` from the component scan, and the scheme is registered through the authentication
-module's configuration instead.
+module's configuration instead — `AuthenticationConfig.getAuthenticationScheme()` reads
+`authentication.scheme`, then instantiates `authentication.scheme.<id>.type` reflectively and calls
+`configure()` with the `…config.*` subset. Nothing in this module reads those properties.
+
+**The scheme is deliberately not a `WebAuthenticationScheme`.**
+The authentication module's filter is mapped to every URL, but it collects credentials, redirects to a
+login page and consults `authentication.whiteList` only when the active scheme extends that base; for any
+other scheme it passes the request straight down the chain. This scheme has no interactive login to
+drive — the bearer header is read by `SmartBearerTokenFilter`, scoped to the FHIR paths. It did extend
+that base once, returning no credentials and a null challenge URL on the assumption that a null
+challenge URL reads as "carry on". It does not: the filter falls through to the whitelist and, for
+anything not listed, calls `sendRedirect(null)`, which was measured as a redirect loop on the OpenMRS
+root. That is why registering this scheme used to require `authentication.whiteList=/*` — switching the
+module's gatekeeping off for the whole webapp to accommodate a scheme that never wanted it on. It now
+implements `ConfigurableAuthenticationScheme`, which is all the module needs to instantiate and
+configure it, and asks nothing of the whitelist. What the base class did around authentication is kept:
+a SMART authentication is still reported to the login record the module logs its `AUTHENTICATION_*`
+events from.
 
 **A launch does not leave a session behind.**
 A standalone launch must sign the clinician in so they can search for a patient. That session used to
