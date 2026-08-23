@@ -202,6 +202,65 @@ class SmartAppRegistryTest {
 		}
 	}
 
+	/**
+	 * A refusal that only reaches the server log is invisible to whoever configured the app: from the
+	 * outside, a rejected declaration and a module that ignores declarations look identical.
+	 */
+	@Nested
+	@DisplayName("the report of what was refused")
+	class Problems {
+
+		@Test
+		@DisplayName("says nothing when everything declared registered")
+		void silentWhenClean() {
+			property("smart.app.vitals.launchurl", "https://vitals.example.org/launch");
+
+			assertNotNull(SmartAppRegistry.getApp("vitals"));
+			assertTrue(SmartAppRegistry.getProblems().isEmpty());
+		}
+
+		@Test
+		@DisplayName("is empty when nothing was declared, because nothing was refused")
+		void silentWhenAbsent() {
+			assertTrue(SmartAppRegistry.getApps().isEmpty());
+			assertTrue(SmartAppRegistry.getProblems().isEmpty());
+		}
+
+		/** The likeliest thing to go wrong when an app is registered from the environment. */
+		@Test
+		@DisplayName("names the misspelled property and the field it did not recognise")
+		void namesAMisspelledProperty() {
+			property("smart.app.vitals.launchurl", "https://vitals.example.org/launch");
+			property("smart.app.vitals.launchcontxt", "encounter");
+
+			assertEquals(1, SmartAppRegistry.getProblems().size());
+			assertTrue(SmartAppRegistry.getProblems().get(0).contains("smart.app.vitals.launchcontxt"),
+			    SmartAppRegistry.getProblems().toString());
+			assertTrue(SmartAppRegistry.getProblems().get(0).contains("launchcontxt"),
+			    SmartAppRegistry.getProblems().toString());
+		}
+
+		@Test
+		@DisplayName("names the app that had nowhere to launch")
+		void namesAnAppWithNowhereToGo() {
+			property("smart.app.orphan.name", "Declared but unlaunchable");
+
+			assertEquals(1, SmartAppRegistry.getProblems().size());
+			assertTrue(SmartAppRegistry.getProblems().get(0).contains("'orphan'"),
+			    SmartAppRegistry.getProblems().toString());
+		}
+
+		@Test
+		@DisplayName("says what a key naming no field should have looked like")
+		void explainsAMalformedKey() {
+			property("smart.app.vitals", "https://vitals.example.org/launch");
+
+			assertEquals(1, SmartAppRegistry.getProblems().size());
+			assertTrue(SmartAppRegistry.getProblems().get(0).contains("<id>.<field>"),
+			    SmartAppRegistry.getProblems().toString());
+		}
+	}
+
 	@Nested
 	@DisplayName("an app")
 	class Usability {

@@ -60,6 +60,9 @@ public class SmartAppRegistry {
 
 	private static volatile boolean loadAttempted = false;
 
+	/** Why the last load refused what it refused, for whoever has to make the configuration work. */
+	private static volatile List<String> problems = Collections.emptyList();
+
 	/**
 	 * @return the registered apps, by id, as copies. Never null.
 	 *         <p>
@@ -101,10 +104,27 @@ public class SmartAppRegistry {
 		return app == null ? null : copyOf(app);
 	}
 
+	/**
+	 * @return what the last load refused and why, in the order it was found. Empty when everything
+	 *         declared was registered.
+	 *         <p>
+	 *         Exists because every one of these was previously a line in the server log and nothing
+	 *         else. An implementation registering an app from environment variables could not tell that
+	 *         it had misspelled one: the app simply never appeared, which looks the same as the module
+	 *         ignoring the properties altogether. These are those messages, kept rather than only
+	 *         logged.
+	 */
+	public static List<String> getProblems() {
+		registry();
+
+		return problems;
+	}
+
 	/** Discards what was loaded, so the next read builds the registry again. For tests. */
 	public static synchronized void reset() {
 		apps = null;
 		loadAttempted = false;
+		problems = Collections.emptyList();
 	}
 
 	private static Map<String, SmartApp> registry() {
@@ -133,6 +153,7 @@ public class SmartAppRegistry {
 		// Sorted by id, so the app list and the log below read in a stable order rather than however
 		// the properties happened to enumerate.
 		final Map<String, SmartApp> byId = new TreeMap<>();
+		final List<String> found = new ArrayList<>();
 
 		for (String key : properties.stringPropertyNames()) {
 			final String lower = key.toLowerCase();
@@ -145,7 +166,8 @@ public class SmartAppRegistry {
 			final int dot = remainder.lastIndexOf('.');
 
 			if (dot <= 0 || dot == remainder.length() - 1) {
-				log.error("Ignoring runtime property '{}': expected {}<id>.<field>", key, APP_PROPERTY_PREFIX);
+				refused(found,
+				    String.format("Ignoring runtime property '%s': expected %s<id>.<field>", key, APP_PROPERTY_PREFIX));
 				continue;
 			}
 
@@ -164,7 +186,8 @@ public class SmartAppRegistry {
 			});
 
 			if (!apply(app, field, value.trim())) {
-				log.error("Ignoring runtime property '{}': '{}' is not a field of a SMART app registration", key, field);
+				refused(found, String.format(
+				    "Ignoring runtime property '%s': '%s' is not a field of a SMART app registration", key, field));
 			}
 		}
 
@@ -175,11 +198,13 @@ public class SmartAppRegistry {
 			}
 
 			// Listing it would show a clinician an app that fails when chosen.
-			log.error("Ignoring the app '{}': it has no launchUrl, so a launch would have nowhere to go", app.getId());
+			refused(found, String.format("Ignoring the app '%s': it has no launchUrl, so a launch would have nowhere to go",
+			    app.getId()));
 			return true;
 		});
 
 		apps = new LinkedHashMap<>(byId);
+		problems = Collections.unmodifiableList(found);
 
 		if (byId.isEmpty()) {
 			log.info("No SMART app is registered, so none can be launched. Set {}<id>.launchurl to register one.",
@@ -198,6 +223,12 @@ public class SmartAppRegistry {
 			log.debug("The runtime properties are not readable yet, so no SMART app is registered", e);
 			return null;
 		}
+	}
+
+	/** Logs what was refused, as before, and keeps it for {@link #getProblems()}. */
+	private static void refused(List<String> found, String message) {
+		log.error(message);
+		found.add(message);
 	}
 
 	private static boolean apply(SmartApp app, String field, String value) {
