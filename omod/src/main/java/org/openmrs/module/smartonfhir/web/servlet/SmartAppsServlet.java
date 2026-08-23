@@ -24,6 +24,7 @@ import org.apache.http.HttpStatus;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartApp;
 import org.openmrs.module.smartonfhir.util.SmartAppRegistry;
+import org.openmrs.util.PrivilegeConstants;
 
 /**
  * The SMART apps a clinician may launch, for whatever offers them a way to do it.
@@ -31,6 +32,9 @@ import org.openmrs.module.smartonfhir.util.SmartAppRegistry;
  * Exists so the frontend can list apps without reading the registry file or knowing where it lives.
  * Deliberately not the whole registry entry: an app's launch URL and client id are of no use to a
  * chart screen, whose only job is to show a name and link to the launch servlet with an id.
+ * <p>
+ * Administrators additionally get what the registry refused, so a deployment that configured an app
+ * and cannot find it has somewhere to look other than the server log.
  */
 public class SmartAppsServlet extends HttpServlet {
 
@@ -61,6 +65,13 @@ public class SmartAppsServlet extends HttpServlet {
 
 		Map<String, Object> body = new LinkedHashMap<>();
 		body.put("apps", apps);
+
+		// Only for administrators: these messages name the registry file's path on disk and the
+		// properties a deployment set, which is administrative detail rather than something every
+		// authenticated user should be handed.
+		if (Context.hasPrivilege(PrivilegeConstants.VIEW_ADMIN_FUNCTIONS)) {
+			body.put("problems", SmartAppRegistry.getProblems());
+		}
 
 		resp.setContentType("application/json");
 		resp.setCharacterEncoding("UTF-8");
