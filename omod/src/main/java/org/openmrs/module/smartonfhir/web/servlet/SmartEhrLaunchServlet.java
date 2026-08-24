@@ -21,6 +21,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
 import org.openmrs.User;
+import org.openmrs.api.APIAuthenticationException;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartApp;
 import org.openmrs.module.smartonfhir.util.SmartAppRegistry;
@@ -39,6 +40,8 @@ import org.openmrs.module.smartonfhir.web.util.FhirBaseAddressStrategy;
  * The app is named by id and its address is read from the registry. It used to be taken from a
  * {@code launchUrl} request parameter, which made this an open redirector: anyone who could reach
  * this servlet could have a launch handle delivered to a host of their choosing.
+ * <p>
+ * The context is resolved before a handle is issued, so a launch names something that exists.
  */
 @Slf4j
 public class SmartEhrLaunchServlet extends HttpServlet {
@@ -81,6 +84,14 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 			return;
 		}
 
+		// A handle is a credential, and one issued for a context that does not exist is redeemable but
+		// names nothing: the app is sent on its way, asks for a patient it was told about, and is told
+		// there is none. The chart only ever names ids it is displaying, so a miss here is a hand-made
+		// URL rather than something a clinician did.
+		if (!contextExists(launchContext, patientId, visitId, resp)) {
+			return;
+		}
+
 		final String issuer = new FhirBaseAddressStrategy().getFhirBaseUrl(req);
 
 		if (StringUtils.isBlank(issuer)) {
@@ -99,5 +110,37 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 		        + URLEncoder.encode(launchHandle, StandardCharsets.UTF_8.name());
 
 		resp.sendRedirect(resp.encodeRedirectURL(target));
+	}
+
+	/**
+	 * Whether the patient or visit this launch is for can be read. Answers the response itself when it
+	 * cannot, so the caller only has to stop.
+	 */
+	private boolean contextExists(String launchContext, String patientId, String visitId, HttpServletResponse resp)
+	        throws IOException {
+		final boolean forEncounter = "encounter".equals(launchContext);
+		final String uuid = forEncounter ? visitId : patientId;
+		final String what = forEncounter ? "visit" : "patient";
+
+		try {
+			Object context = forEncounter ? Context.getVisitService().getVisitByUuid(uuid)
+			        : Context.getPatientService().getPatientByUuid(uuid);
+
+			if (context == null) {
+				log.error("Refused a launch: no {} with uuid {}", what, uuid);
+				resp.sendError(HttpStatus.SC_NOT_FOUND, "No such " + what);
+				return false;
+			}
+		}
+		catch (APIAuthenticationException e) {
+			// Reading the context is a privileged operation, and this is the one path where a clinician
+			// who may start a launch might not be allowed to see what it is for. Refusing is the answer:
+			// a launch grants the app the clinician's own access, which they do not have here.
+			log.error("Refused a launch: not permitted to read the {} {}", what, uuid);
+			resp.sendError(HttpStatus.SC_FORBIDDEN, "Not permitted to launch for this " + what);
+			return false;
+		}
+
+		return true;
 	}
 }
