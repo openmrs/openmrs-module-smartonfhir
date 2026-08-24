@@ -20,10 +20,9 @@ import org.openmrs.api.context.Context;
 import org.openmrs.api.context.ContextAuthenticationException;
 import org.openmrs.api.context.Credentials;
 import org.openmrs.api.context.UsernamePasswordAuthenticationScheme;
-import org.openmrs.module.authentication.AuthenticationCredentials;
+import org.openmrs.module.authentication.ConfigurableAuthenticationScheme;
 import org.openmrs.module.authentication.UserLogin;
-import org.openmrs.module.authentication.web.AuthenticationSession;
-import org.openmrs.module.authentication.web.WebAuthenticationScheme;
+import org.openmrs.module.authentication.UserLoginTracker;
 import org.openmrs.module.smartonfhir.auth.SmartBearerCredentials;
 import org.openmrs.module.smartonfhir.auth.SmartTokenCredentials;
 import org.openmrs.util.PrivilegeConstants;
@@ -42,17 +41,27 @@ import org.openmrs.util.PrivilegeConstants;
  * the authentication module from {@code authentication.scheme.{id}.type}, by reflection, and so
  * never competes for the bean.
  * <p>
- * <strong>Why O3 login is unaffected.</strong> The module's filter is mapped to {@code /*} and,
- * when the active scheme is a {@link WebAuthenticationScheme}, redirects unauthenticated requests
- * to {@link #getChallengeUrl}. Sending O3's app shell and REST calls to a login page would be a
- * serious regression, so this scheme returns no credentials and a <em>null</em> challenge URL for
- * any request without a bearer token; the filter treats a null challenge URL as "carry on" and
- * passes the request down the chain untouched. Non-bearer credentials are handed to the delegate,
- * which defaults to the platform's own username/password scheme — exactly what RefApp 3.7.1 uses
- * today.
+ * <strong>Deliberately not a {@code WebAuthenticationScheme}.</strong> The authentication module's
+ * filter is mapped to {@code /*}, and everything it does — collecting credentials, redirecting to a
+ * login page, consulting {@code authentication.whiteList} — happens only when the active scheme is
+ * a {@code WebAuthenticationScheme}. For any other scheme the filter passes the request straight
+ * down the chain. This scheme has no interactive login to drive: the bearer header is read by
+ * {@code SmartBearerTokenFilter}, scoped to the FHIR paths, and it authenticates through
+ * {@link Context#authenticate}.
+ * <p>
+ * This class did extend that base, returning no credentials and a null challenge URL in the belief
+ * that the filter would read a null challenge URL as "carry on". It does not: with no credentials
+ * it checks {@code authentication.whiteList} and, for anything not listed, calls
+ * {@code sendRedirect(null)} — measured as a redirect loop on the OpenMRS root. Every deployment
+ * registering this scheme therefore needed {@code authentication.whiteList=/*}, which switched the
+ * module's gatekeeping off wholesale to work around a scheme that never wanted it on. Not extending
+ * the web base asks for nothing and leaves the deployment's whitelist to the deployment.
+ * <p>
+ * Non-bearer credentials are handed to the delegate, which defaults to the platform's own
+ * username/password scheme — exactly what RefApp 3.7.1 uses today.
  */
 @Slf4j
-public class SmartBearerTokenAuthenticationScheme extends WebAuthenticationScheme {
+public class SmartBearerTokenAuthenticationScheme implements ConfigurableAuthenticationScheme {
 
 	/**
 	 * Scheme id to hand non-bearer credentials to. When unset the platform's username/password scheme
@@ -63,45 +72,19 @@ public class SmartBearerTokenAuthenticationScheme extends WebAuthenticationSchem
 
 	private String delegateSchemeId;
 
+	private String schemeId;
+
 	private volatile AuthenticationScheme delegate;
 
 	@Override
+	public String getSchemeId() {
+		return schemeId;
+	}
+
+	@Override
 	public void configure(String schemeId, Properties config) {
-		super.configure(schemeId, config);
+		this.schemeId = schemeId;
 		this.delegateSchemeId = config.getProperty(CONFIG_DELEGATE);
-	}
-
-	/**
-	 * Always null: this scheme never reads the request.
-	 * <p>
-	 * It is registered so that {@link Context#authenticate} can route SMART credentials here, not so
-	 * that the authentication module's filter can drive a login. Returning credentials from here makes
-	 * that filter authenticate the request itself and then issue its interactive-login success redirect
-	 * -- a 302 where a FHIR client expects its data. Reading the bearer header is
-	 * {@code SmartBearerTokenFilter}'s job, scoped to the FHIR paths, and it authenticates by calling
-	 * {@link Context#authenticate}, which arrives at {@link #authenticate(Credentials)} below.
-	 */
-	@Override
-	public AuthenticationCredentials getCredentials(AuthenticationSession session) {
-		return null;
-	}
-
-	/**
-	 * Also null, so the module's filter passes every request down the chain rather than redirecting it
-	 * to a login page. Without this, O3's app shell and REST calls would be sent to one.
-	 */
-	@Override
-	public String getChallengeUrl(AuthenticationSession session) {
-		return null;
-	}
-
-	@Override
-	protected Authenticated authenticate(AuthenticationCredentials credentials, UserLogin userLogin) {
-		if (!(credentials instanceof SmartBearerCredentials)) {
-			return delegateAuthenticate(credentials);
-		}
-
-		return authenticateAsNamedUser(credentials.getClientName(), credentials.getAuthenticationScheme());
 	}
 
 	/**
@@ -126,14 +109,13 @@ public class SmartBearerTokenAuthenticationScheme extends WebAuthenticationSchem
 	}
 
 	/**
-	 * Also reachable through {@code Context.authenticate(Credentials)}, which bypasses
-	 * {@link #getCredentials}. Bearer credentials cannot be forged into existence here, because
+	 * The one entry point. Bearer credentials cannot be forged into existence here, because
 	 * {@link SmartBearerCredentials} can only be built from an already-verified token.
 	 */
 	@Override
 	public Authenticated authenticate(Credentials credentials) throws ContextAuthenticationException {
 		if (credentials instanceof SmartBearerCredentials) {
-			return super.authenticate(credentials);
+			return recorded(credentials);
 		}
 
 		// The launch handshake authenticates the user who is selecting a patient, via
@@ -141,16 +123,42 @@ public class SmartBearerTokenAuthenticationScheme extends WebAuthenticationSchem
 		// Nothing else in the platform handles these credentials, so without this the standalone
 		// launch cannot get past patient selection.
 		if (credentials instanceof SmartTokenCredentials) {
-			return authenticateAsNamedUser(credentials.getClientName(), credentials.getAuthenticationScheme());
+			return recorded(credentials);
 		}
 
 		return delegateAuthenticate(credentials);
 	}
 
-	@Override
-	public boolean isUserConfigurationRequired(User user) {
-		// Nothing for a user to set up: the authorization server owns the credential.
-		return false;
+	/**
+	 * Authenticates a SMART credential and reports the outcome to the authentication module's login
+	 * record, which is what {@code WebAuthenticationScheme} used to do around this call before this
+	 * scheme stopped extending it. Kept because that record is the module's audit trail --
+	 * AUTHENTICATION_SUCCEEDED and AUTHENTICATION_FAILED, with the scheme that decided -- and a
+	 * deployment logging it should not lose SMART authentications from it.
+	 * <p>
+	 * Only when a login is already on the thread, which the module's filter puts there for every
+	 * request. Outside a request there is nothing to attach the event to and nothing is invented.
+	 */
+	private Authenticated recorded(Credentials credentials) throws ContextAuthenticationException {
+		final UserLogin login = UserLoginTracker.getLoginOnThread();
+
+		try {
+			Authenticated authenticated = authenticateAsNamedUser(credentials.getClientName(),
+			    credentials.getAuthenticationScheme());
+
+			if (login != null) {
+				login.authenticationSuccessful(schemeId, authenticated);
+			}
+
+			return authenticated;
+		}
+		catch (Exception e) {
+			if (login != null) {
+				login.authenticationFailed(schemeId);
+			}
+
+			throw e;
+		}
 	}
 
 	/**
