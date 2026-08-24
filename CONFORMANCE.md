@@ -60,7 +60,7 @@ could stand in for them.
 
 | Spec requirement | Status | Notes |
 |---|---|---|
-| `introspection_endpoint` advertised | **Only when configured** | Stated, never derived. It used to be derived from the issuer, which advertised an endpoint every app could find and no app we ship could use. A deployment that has registered a confidential client for introspection sets `introspection-endpoint` and gets it advertised again. |
+| `introspection_endpoint` advertised | **Only when configured** | Stated, never derived. It used to be derived from the issuer, which advertised an endpoint every app could find and no app we ship could use. A deployment that has registered a confidential client for introspection sets `smart.introspection.endpoint` and gets it advertised again. |
 | Usable by the app we ship | **No** | A public client gets `403 {"error":"invalid_request","error_description":"Client not allowed."}`. Keycloak requires a confidential client. |
 | Authenticating to it with a SMART bearer token | **No** | `401 invalid_client`. The spec says any client authorized to introspect SHALL be able to authenticate this way; Keycloak does not support it. |
 | Required fields (`active`, `scope`, `client_id`, `exp`) | **Untested** | Blocked on the above. Keycloak returns these for a confidential client. |
