@@ -9,19 +9,10 @@
  */
 package org.openmrs.module.smartonfhir.util;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Paths;
 import java.util.Base64;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.openmrs.api.context.Context;
-import org.openmrs.module.smartonfhir.model.SmartSecretKey;
-import org.openmrs.util.OpenmrsUtil;
 
 @Slf4j
 public class SmartSecretKeyHolder {
@@ -35,8 +26,6 @@ public class SmartSecretKeyHolder {
 	 * file remains supported for a deployment that already has one.
 	 */
 	public static final String SECRET_RUNTIME_PROPERTY = "smart.launch.secret";
-
-	private static final ObjectMapper objectMapper = new ObjectMapper();
 
 	private static volatile byte[] secretKey = null;
 
@@ -57,31 +46,10 @@ public class SmartSecretKeyHolder {
 			return;
 		}
 
-		final File file = Paths.get(OpenmrsUtil.getApplicationDataDirectory(), "config", "smart-secret-key.json").toFile();
-
-		if (!file.canRead()) {
-			log.warn("No SMART launch secret at {}. The launch handshake with the authorization server cannot be "
-			        + "verified until one exists, and launches will be refused.",
-			    file.getAbsolutePath());
-			return;
-		}
-
-		try (InputStream in = new BufferedInputStream(new FileInputStream(file))) {
-			String encoded = objectMapper.readValue(in, SmartSecretKey.class).getSmartSharedSecretKey();
-
-			if (encoded == null || encoded.isBlank()) {
-				log.error("{} does not set 'smart_shared_secret_key'", file.getAbsolutePath());
-				return;
-			}
-
-			secretKey = Base64.getDecoder().decode(encoded.trim());
-		}
-		catch (IOException e) {
-			log.error("Could not read {}", file.getAbsolutePath(), e);
-		}
-		catch (IllegalArgumentException e) {
-			log.error("The value of 'smart_shared_secret_key' in {} is not valid base64", file.getAbsolutePath(), e);
-		}
+		log.warn(
+		    "No SMART launch secret: set {} in the runtime properties. The launch handshake with the "
+		            + "authorization server cannot be verified until one exists, and launches will be refused.",
+		    SECRET_RUNTIME_PROPERTY);
 	}
 
 	/**
