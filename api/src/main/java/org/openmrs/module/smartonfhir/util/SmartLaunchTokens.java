@@ -137,7 +137,8 @@ public final class SmartLaunchTokens {
 
 	private static boolean isUsableSecret(byte[] secret) {
 		if (secret == null || secret.length == 0) {
-			log.error("No SMART launch secret is configured; see config/smart-secret-key.json");
+			log.error("No SMART launch secret is configured; set {} in the runtime properties",
+			    SmartSecretKeyHolder.SECRET_RUNTIME_PROPERTY);
 			return false;
 		}
 

@@ -13,11 +13,7 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.io.File;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
 import java.util.Properties;
@@ -73,14 +69,6 @@ public class SmartRuntimePropertyConfigTest {
 		SmartOAuth2ConfigHolder.reset();
 	}
 
-	private void writeConfigFile(String json) throws Exception {
-		File config = appData.resolve("config").toFile();
-		assertTrue(config.mkdirs() || config.isDirectory());
-		Files.write(config.toPath().resolve(SmartOAuth2ConfigHolder.CONFIG_FILE_NAME),
-		    json.getBytes(StandardCharsets.UTF_8));
-		SmartOAuth2ConfigHolder.reset();
-	}
-
 	@Test
 	public void getConfig_shouldBuildFromRuntimePropertiesWithNoFilePresent() {
 		runtimeProperty(SmartOAuth2ConfigHolder.ISSUER_PROPERTY, "https://kc.example.org/realms/openmrs");
@@ -104,27 +92,6 @@ public class SmartRuntimePropertyConfigTest {
 		assertThat(SmartOAuth2ConfigHolder.getConfig(), nullValue());
 	}
 
-	/**
-	 * The environment is what an operator edits in a container, so it wins key by key over the file.
-	 */
-	@Test
-	public void getConfig_shouldOverrideTheFilesValueWithARuntimeProperty() throws Exception {
-		writeConfigFile(
-		    "{\"issuer\":\"https://from-file.example.org\",\"audience\":\"https://from-file.example.org/fhir\"}");
-		runtimeProperty(SmartOAuth2ConfigHolder.ISSUER_PROPERTY, "https://from-env.example.org");
-		runtimeProperty(SmartOAuth2ConfigHolder.AUDIENCE_PROPERTY, "https://from-env.example.org/fhir");
-
-		assertThat(SmartOAuth2ConfigHolder.getConfig().getIssuer(), is("https://from-env.example.org"));
-	}
-
-	@Test
-	public void getConfig_shouldFallBackToTheFileWhenNoPropertyIsSet() throws Exception {
-		writeConfigFile(
-		    "{\"issuer\":\"https://from-file.example.org\",\"audience\":\"https://from-file.example.org/fhir\"}");
-
-		assertThat(SmartOAuth2ConfigHolder.getConfig().getIssuer(), is("https://from-file.example.org"));
-	}
-
 	@Test
 	public void getConfig_shouldCarryTheOptionalPropertiesThrough() {
 		runtimeProperty(SmartOAuth2ConfigHolder.ISSUER_PROPERTY, "https://kc.example.org/realms/openmrs");
@@ -142,56 +109,50 @@ public class SmartRuntimePropertyConfigTest {
 
 	/** Blank is how an unset environment variable arrives, and it must not count as configuration. */
 	@Test
-	public void getConfig_shouldTreatBlankPropertiesAsAbsent() throws Exception {
-		writeConfigFile(
-		    "{\"issuer\":\"https://from-file.example.org\",\"audience\":\"https://from-file.example.org/fhir\"}");
+	public void getConfig_shouldTreatBlankPropertiesAsAbsent() {
 		runtimeProperty(SmartOAuth2ConfigHolder.ISSUER_PROPERTY, "   ");
 		runtimeProperty(SmartOAuth2ConfigHolder.AUDIENCE_PROPERTY, "");
 
-		assertThat(SmartOAuth2ConfigHolder.getConfig().getIssuer(), is("https://from-file.example.org"));
-	}
-
-	/**
-	 * The point of layering: a property replaces the key it names and nothing else, so the settings no
-	 * property covers survive. Overriding the issuer used to discard the whole file, taking the clock
-	 * skew and every explicit endpoint with it.
-	 */
-	@Test
-	public void getConfig_shouldKeepTheFilesOtherKeysWhenAPropertyOverridesOne() throws Exception {
-		writeConfigFile("{\"issuer\":\"https://from-file.example.org\","
-		        + "\"audience\":\"https://from-file.example.org/fhir\"," + "\"allowed-clock-skew-seconds\":90,"
-		        + "\"introspection-endpoint\":\"https://from-file.example.org/introspect\"}");
-		runtimeProperty(SmartOAuth2ConfigHolder.ISSUER_PROPERTY, "https://from-env.example.org");
-
-		SmartOAuth2Config config = SmartOAuth2ConfigHolder.getConfig();
-
-		assertThat(config.getIssuer(), is("https://from-env.example.org"));
-		assertThat(config.getAudience(), is("https://from-file.example.org/fhir"));
-		assertThat(config.getAllowedClockSkewSeconds(), is(90));
-		assertThat(config.getIntrospectionEndpoint(), is("https://from-file.example.org/introspect"));
-	}
-
-	/**
-	 * Either source may supply either half. A file naming only the issuer was unusable on its own, and
-	 * an environment naming only the audience was ignored; together they are a configuration.
-	 */
-	@Test
-	public void getConfig_shouldCompleteAFileMissingItsAudienceFromTheEnvironment() throws Exception {
-		writeConfigFile("{\"issuer\":\"https://from-file.example.org\"}");
-		runtimeProperty(SmartOAuth2ConfigHolder.AUDIENCE_PROPERTY, "https://from-env.example.org/fhir");
-
-		SmartOAuth2Config config = SmartOAuth2ConfigHolder.getConfig();
-
-		assertThat(config, notNullValue());
-		assertThat(config.getIssuer(), is("https://from-file.example.org"));
-		assertThat(config.getAudience(), is("https://from-env.example.org/fhir"));
-	}
-
-	/** A file that names neither half is still not a configuration, whatever else it sets. */
-	@Test
-	public void getConfig_shouldRefuseAFileWithNeitherIssuerNorAudience() throws Exception {
-		writeConfigFile("{\"allowed-clock-skew-seconds\":90}");
-
 		assertThat(SmartOAuth2ConfigHolder.getConfig(), nullValue());
+	}
+
+	/**
+	 * The endpoints and the clock skew were the reason a file existed at all: no property covered them,
+	 * so a deployment that wanted an introspection endpoint had to write JSON into a volume.
+	 */
+	@Test
+	public void getConfig_shouldTakeTheEndpointsAndClockSkewFromProperties() {
+		runtimeProperty(SmartOAuth2ConfigHolder.ISSUER_PROPERTY, "https://kc.example.org/realms/openmrs");
+		runtimeProperty(SmartOAuth2ConfigHolder.AUDIENCE_PROPERTY, "https://openmrs.example.org/ws/fhir2/R4");
+		runtimeProperty(SmartOAuth2ConfigHolder.AUTHORIZATION_ENDPOINT_PROPERTY, "https://kc.example.org/auth");
+		runtimeProperty(SmartOAuth2ConfigHolder.TOKEN_ENDPOINT_PROPERTY, "https://kc.example.org/token");
+		runtimeProperty(SmartOAuth2ConfigHolder.INTROSPECTION_ENDPOINT_PROPERTY, "https://kc.example.org/introspect");
+		runtimeProperty(SmartOAuth2ConfigHolder.REVOCATION_ENDPOINT_PROPERTY, "https://kc.example.org/revoke");
+		runtimeProperty(SmartOAuth2ConfigHolder.REGISTRATION_ENDPOINT_PROPERTY, "https://kc.example.org/register");
+		runtimeProperty(SmartOAuth2ConfigHolder.END_SESSION_ENDPOINT_PROPERTY, "https://kc.example.org/logout");
+		runtimeProperty(SmartOAuth2ConfigHolder.CLOCK_SKEW_PROPERTY, "90");
+
+		SmartOAuth2Config config = SmartOAuth2ConfigHolder.getConfig();
+
+		assertThat(config.getAuthorizationEndpoint(), is("https://kc.example.org/auth"));
+		assertThat(config.getTokenEndpoint(), is("https://kc.example.org/token"));
+		assertThat(config.getIntrospectionEndpoint(), is("https://kc.example.org/introspect"));
+		assertThat(config.getRevocationEndpoint(), is("https://kc.example.org/revoke"));
+		assertThat(config.getRegistrationEndpoint(), is("https://kc.example.org/register"));
+		assertThat(config.getEndSessionEndpoint(), is("https://kc.example.org/logout"));
+		assertThat(config.getAllowedClockSkewSeconds(), is(90));
+	}
+
+	/**
+	 * Coercing this to the default would leave a deployment believing it had widened the window in
+	 * which it accepts tokens.
+	 */
+	@Test
+	public void getConfig_shouldRefuseAClockSkewThatIsNotANumber() {
+		runtimeProperty(SmartOAuth2ConfigHolder.ISSUER_PROPERTY, "https://kc.example.org/realms/openmrs");
+		runtimeProperty(SmartOAuth2ConfigHolder.AUDIENCE_PROPERTY, "https://openmrs.example.org/ws/fhir2/R4");
+		runtimeProperty(SmartOAuth2ConfigHolder.CLOCK_SKEW_PROPERTY, "a minute or so");
+
+		assertThat(SmartOAuth2ConfigHolder.getConfig().getAllowedClockSkewSeconds(), is(30));
 	}
 }

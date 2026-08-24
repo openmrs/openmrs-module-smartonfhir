@@ -9,33 +9,21 @@
  */
 package org.openmrs.module.smartonfhir.util;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartOAuth2Config;
-import org.openmrs.util.OpenmrsUtil;
 
 /**
- * Loads {@link SmartOAuth2Config} from {@code config/smart-oauth2.json}, with individual keys
- * overridable by runtime properties so a container can configure it from its environment.
+ * Loads {@link SmartOAuth2Config} from the {@code smart.*} runtime properties. There is deliberately
+ * no default: which authorization server to trust is a deployment decision.
  */
 @Slf4j
 public class SmartOAuth2ConfigHolder {
-
-	public static final String CONFIG_FILE_NAME = "smart-oauth2.json";
-
-	private static final ObjectMapper objectMapper = new ObjectMapper();
 
 	private static volatile SmartOAuth2Config config;
 
@@ -84,33 +72,35 @@ public class SmartOAuth2ConfigHolder {
 
 	public static final String USERNAME_CLAIM_PROPERTY = "smart.username.claim";
 
+	public static final String CLOCK_SKEW_PROPERTY = "smart.allowed.clock.skew.seconds";
+
+	public static final String AUTHORIZATION_ENDPOINT_PROPERTY = "smart.authorization.endpoint";
+
+	public static final String TOKEN_ENDPOINT_PROPERTY = "smart.token.endpoint";
+
+	public static final String INTROSPECTION_ENDPOINT_PROPERTY = "smart.introspection.endpoint";
+
+	public static final String REVOCATION_ENDPOINT_PROPERTY = "smart.revocation.endpoint";
+
+	public static final String REGISTRATION_ENDPOINT_PROPERTY = "smart.registration.endpoint";
+
+	public static final String END_SESSION_ENDPOINT_PROPERTY = "smart.end.session.endpoint";
+
 	private static void load() {
-		final File file = configFile();
-		final boolean fileExists = file.canRead();
-
-		SmartOAuth2Config candidate = fileExists ? readFile(file) : new SmartOAuth2Config();
-
-		if (candidate == null) {
-			// The file is there but unreadable or malformed; readFile has already said which.
-			return;
-		}
-
-		final List<String> overridden = applyRuntimeProperties(candidate);
+		final SmartOAuth2Config candidate = new SmartOAuth2Config();
+		final List<String> applied = applyRuntimeProperties(candidate);
 
 		if (!candidate.isUsable()) {
-			if (!fileExists && overridden.isEmpty()) {
-				log.warn("SMART on FHIR is not configured: expected {}, or {} and {} as runtime properties. Until one "
-				        + "exists, SMART endpoints will refuse requests rather than trust an unconfigured "
+			if (applied.isEmpty()) {
+				log.warn("SMART on FHIR is not configured: set at least {} and {} in the runtime properties. Until "
+				        + "they exist, SMART endpoints will refuse requests rather than trust an unconfigured "
 				        + "authorization server.",
-				    file.getAbsolutePath(), ISSUER_PROPERTY, AUDIENCE_PROPERTY);
+				    ISSUER_PROPERTY, AUDIENCE_PROPERTY);
 			} else {
 				// Half-configured is the dangerous case: an issuer without an audience would accept a
-				// token minted for another FHIR server. Naming both sources matters because either
-				// could have supplied the missing half.
-				log.error(
-				    "SMART on FHIR has {} after reading {} and the runtime properties, and needs both. Set the "
-				            + "missing one in that file or as {} / {}.",
-				    describe(candidate), file.getAbsolutePath(), ISSUER_PROPERTY, AUDIENCE_PROPERTY);
+				// token minted for another FHIR server.
+				log.error("SMART on FHIR has {}, and needs both. Set the missing one as {} or {}.", describe(candidate),
+				    ISSUER_PROPERTY, AUDIENCE_PROPERTY);
 			}
 
 			return;
@@ -118,30 +108,14 @@ public class SmartOAuth2ConfigHolder {
 
 		config = candidate;
 
-		if (overridden.isEmpty()) {
-			log.info("SMART on FHIR configured for issuer {} and audience {}", candidate.getIssuer(),
-			    candidate.getAudience());
-		} else {
-			// Which keys came from where, so that a property quietly overriding a file is visible in
-			// the log rather than something an operator has to infer from behaviour.
-			log.info("SMART on FHIR configured for issuer {} and audience {}; {} from runtime properties{}",
-			    candidate.getIssuer(), candidate.getAudience(), String.join(", ", overridden),
-			    fileExists ? " over " + CONFIG_FILE_NAME : "");
-		}
-	}
-
-	private static SmartOAuth2Config readFile(File file) {
-		try (InputStream in = new BufferedInputStream(new FileInputStream(file))) {
-			return objectMapper.readValue(in, SmartOAuth2Config.class);
-		}
-		catch (IOException e) {
-			log.error("Could not read {}", file.getAbsolutePath(), e);
-			return null;
-		}
+		log.info("SMART on FHIR configured for issuer {} and audience {}, from {}", candidate.getIssuer(),
+		    candidate.getAudience(), String.join(", ", applied));
 	}
 
 	/**
-	 * Overrides the keys the runtime properties set, leaving every other key as the file left it.
+	 * Reads every key from the runtime properties, leaving the model's own defaults where a property is
+	 * absent -- {@code preferred_username} for the username claim, thirty seconds of clock skew, and
+	 * endpoints derived from the issuer.
 	 *
 	 * @return the names of the properties that were applied, for logging
 	 */
@@ -152,7 +126,8 @@ public class SmartOAuth2ConfigHolder {
 			properties = Context.getRuntimeProperties();
 		}
 		catch (Exception e) {
-			// Reached before the runtime properties exist; the file alone can still serve.
+			// Reached before the runtime properties exist. Nothing is configured yet, and the next
+			// lookup tries again rather than latching.
 			return Collections.emptyList();
 		}
 
@@ -192,7 +167,72 @@ public class SmartOAuth2ConfigHolder {
 			applied.add(USERNAME_CLAIM_PROPERTY);
 		}
 
+		// The endpoints a deployment states rather than has derived from its issuer. Introspection is
+		// never derived, so a property is the only way to have one advertised at all.
+		applyEndpoints(properties, target, applied);
+		applyClockSkew(properties, target, applied);
+
 		return applied;
+	}
+
+	private static void applyEndpoints(Properties properties, SmartOAuth2Config target, List<String> applied) {
+		final String authorization = trimmed(properties.getProperty(AUTHORIZATION_ENDPOINT_PROPERTY));
+		if (authorization != null) {
+			target.setAuthorizationEndpoint(authorization);
+			applied.add(AUTHORIZATION_ENDPOINT_PROPERTY);
+		}
+
+		final String token = trimmed(properties.getProperty(TOKEN_ENDPOINT_PROPERTY));
+		if (token != null) {
+			target.setTokenEndpoint(token);
+			applied.add(TOKEN_ENDPOINT_PROPERTY);
+		}
+
+		final String introspection = trimmed(properties.getProperty(INTROSPECTION_ENDPOINT_PROPERTY));
+		if (introspection != null) {
+			target.setIntrospectionEndpoint(introspection);
+			applied.add(INTROSPECTION_ENDPOINT_PROPERTY);
+		}
+
+		final String revocation = trimmed(properties.getProperty(REVOCATION_ENDPOINT_PROPERTY));
+		if (revocation != null) {
+			target.setRevocationEndpoint(revocation);
+			applied.add(REVOCATION_ENDPOINT_PROPERTY);
+		}
+
+		final String registration = trimmed(properties.getProperty(REGISTRATION_ENDPOINT_PROPERTY));
+		if (registration != null) {
+			target.setRegistrationEndpoint(registration);
+			applied.add(REGISTRATION_ENDPOINT_PROPERTY);
+		}
+
+		final String endSession = trimmed(properties.getProperty(END_SESSION_ENDPOINT_PROPERTY));
+		if (endSession != null) {
+			target.setEndSessionEndpoint(endSession);
+			applied.add(END_SESSION_ENDPOINT_PROPERTY);
+		}
+	}
+
+	/**
+	 * Clock skew is the one numeric key, so a value that is not a number is refused rather than
+	 * coerced: falling back to the default in silence would leave a deployment believing it had widened
+	 * the window in which it accepts tokens.
+	 */
+	private static void applyClockSkew(Properties properties, SmartOAuth2Config target, List<String> applied) {
+		final String skew = trimmed(properties.getProperty(CLOCK_SKEW_PROPERTY));
+
+		if (skew == null) {
+			return;
+		}
+
+		try {
+			target.setAllowedClockSkewSeconds(Integer.parseInt(skew));
+			applied.add(CLOCK_SKEW_PROPERTY);
+		}
+		catch (NumberFormatException e) {
+			log.error("Ignoring {}={}: it is not a whole number of seconds, so the default of {} stands",
+			    CLOCK_SKEW_PROPERTY, skew, target.getAllowedClockSkewSeconds());
+		}
 	}
 
 	private static String describe(SmartOAuth2Config config) {
@@ -205,9 +245,5 @@ public class SmartOAuth2ConfigHolder {
 
 	private static String trimmed(String value) {
 		return value == null || value.trim().isEmpty() ? null : value.trim();
-	}
-
-	private static File configFile() {
-		return Paths.get(OpenmrsUtil.getApplicationDataDirectory(), "config", CONFIG_FILE_NAME).toFile();
 	}
 }
