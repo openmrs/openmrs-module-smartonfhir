@@ -81,49 +81,46 @@ Three JSON files under `<application data directory>/config`, and the runtime pr
 override them. Either route works on its own, and they can be mixed — see
 [Configuring from the environment instead](#configuring-from-the-environment-instead).
 
-Every key below is spelled the way the code binds it. The config classes ignore unknown properties,
-so **a misspelled key is discarded in silence** rather than reported. All of them are hyphenated, not
-camelCase.
+Everything is a runtime property. There are no configuration files of this module's own: a deployment
+configures it the way it configures OpenMRS, in `openmrs-runtime.properties`, and a container needs no
+volume for any of it. A misspelled property is not applied, and for the app registry it is also
+reported — see *When an app does not appear* below.
 
-### 1. `config/smart-oauth2.json` — the authorization server
+### 1. `smart.issuer` and the rest — the authorization server
 
-`issuer` and `audience` are both **required**. If either is missing the whole file is discarded, and
-the discovery document is not served at all rather than served with guesses.
+`smart.issuer` and `smart.audience` are both **required**. Without both, nothing is served: the
+discovery document is withheld rather than answered with guesses, and tokens are refused rather than
+verified against something the deployment never chose.
 
-```json
-{
-  "issuer": "https://keycloak.example.org/realms/openmrs",
-  "audience": "https://openmrs.example.org/openmrs/ws/fhir2/R4",
-  "advertised-jwks-uri": "https://keycloak.example.org/realms/openmrs/protocol/openid-connect/certs",
-  "allowed-clock-skew-seconds": 30
-}
+```properties
+smart.issuer=https://keycloak.example.org/realms/openmrs
+smart.audience=https://openmrs.example.org/openmrs/ws/fhir2/R4
+smart.advertised.jwks.uri=https://keycloak.example.org/realms/openmrs/protocol/openid-connect/certs
+smart.allowed.clock.skew.seconds=30
 ```
 
-| key | meaning |
+| property | meaning |
 |---|---|
-| `issuer` | The authorization server's issuer identifier. A token whose `iss` differs is rejected. |
-| `audience` | This FHIR server's base URL, as an app names it in the SMART `aud` parameter. A token must carry it in `aud`. |
-| `jwks-uri` | Where this server fetches signing keys. Defaults to the issuer's advertised `jwks_uri`. |
-| `advertised-jwks-uri` | What apps are *told*, for when that differs from the above. |
-| `username-claim` | The claim naming the OpenMRS user. Defaults to `preferred_username`. |
-| `allowed-clock-skew-seconds` | Skew tolerated on `exp` and `nbf`. Defaults to 30. |
-| `authorization-endpoint`, `token-endpoint`, `revocation-endpoint`, `end-session-endpoint`, `registration-endpoint` | Optional. Derived from the issuer using OpenID Connect's conventional paths when absent. |
-| `introspection-endpoint` | Optional, and never derived. Introspection needs a confidential client; advertising a derived one told every public app about an endpoint it would be refused. State it only where such a client exists. |
+| `smart.issuer` | The authorization server's issuer identifier. A token whose `iss` differs is rejected. |
+| `smart.audience` | This FHIR server's base URL, as an app names it in the SMART `aud` parameter. A token must carry it in `aud`. |
+| `smart.jwks.uri` | Where this server fetches signing keys. Defaults to the issuer's advertised `jwks_uri`. |
+| `smart.advertised.jwks.uri` | What apps are *told*, for when that differs from the above. |
+| `smart.username.claim` | The claim naming the OpenMRS user. Defaults to `preferred_username`. |
+| `smart.allowed.clock.skew.seconds` | Skew tolerated on `exp` and `nbf`. Defaults to 30. A value that is not a whole number is refused, and the default stands. |
+| `smart.authorization.endpoint`, `smart.token.endpoint`, `smart.revocation.endpoint`, `smart.registration.endpoint`, `smart.end.session.endpoint` | Optional. Derived from the issuer using OpenID Connect's conventional paths when absent. |
+| `smart.introspection.endpoint` | Optional, and never derived. Introspection needs a confidential client; advertising a derived one told every public app about an endpoint it would be refused. State it only where such a client exists. |
 
-`advertised-jwks-uri` exists for the case where the authorization server has two names: this module
-fetches keys server-to-server and may use a container-internal address, while an app reads the
-discovery document from outside and needs one its browser can resolve. Spelling it `advertisedJwksUri`
-produces exactly the unreachable-`jwks_uri` failure the field exists to prevent.
+`smart.advertised.jwks.uri` exists for the case where the authorization server has two names: this
+module fetches keys server-to-server and may use a container-internal address, while an app reads the
+discovery document from outside and needs one its browser can resolve.
 
-### 2. `config/smart-secret-key.json` — the launch signing secret
+### 2. `smart.launch.secret` — the launch signing secret
 
 A base64 secret shared with the authorization server, used to sign the launch tokens the two exchange.
 Without a usable key no launch can complete, and the module says so rather than proceeding.
 
-```json
-{
-  "smart-shared-secret-key": "<base64, at least 256 bits>"
-}
+```properties
+smart.launch.secret=<base64, at least 256 bits>
 ```
 
 Generate one with:
@@ -131,6 +128,9 @@ Generate one with:
 ```bash
 openssl rand -base64 32
 ```
+
+Keep it out of anything you commit. On the reference application image it is
+`OMRS_EXTRA_SMART_LAUNCH_SECRET`, which is where a secret belongs rather than in a file beside the code.
 
 ### 3. `smart.app.*` — the launchable apps
 
@@ -184,28 +184,17 @@ edited by hand: it takes every variable named `OMRS_EXTRA_<NAME>`, drops the pre
 rest and turns `_` into `.`, then turns any resulting `..` back into `_`. So `OMRS_EXTRA_SMART_ISSUER`
 arrives as `smart.issuer`, and a property that genuinely contains an underscore is written `__`.
 
-| property | overrides |
-|---|---|
-| `smart.issuer` | `issuer` in `smart-oauth2.json` |
-| `smart.audience` | `audience` |
-| `smart.jwks.uri` | `jwks-uri` |
-| `smart.advertised.jwks.uri` | `advertised-jwks-uri` |
-| `smart.username.claim` | `username-claim` |
-| `smart.launch.secret` | `smart-shared-secret-key` in `smart-secret-key.json` |
-
-**The two sources layer.** The file is read first and each property then replaces only the key it
-names, so setting `smart.issuer` leaves the rest of `smart-oauth2.json` — including
-`allowed-clock-skew-seconds` and any explicit endpoint, which no property covers — exactly as it was.
-A file and an environment can also each supply half of what is required: a file naming only the
-issuer plus `smart.audience` in the environment is a complete configuration, where neither was alone.
-
-`issuer` and `audience` are still both required, from whichever source. The startup log names the
-properties it applied and whether they overrode a file, so check there when a value is not the one
-you expected:
+`smart.issuer` and `smart.audience` are both required. The startup log names the properties it applied,
+so check there when a value is not the one you expected:
 
 ```
-SMART on FHIR configured for issuer https://... and audience https://...; smart.issuer from runtime properties over smart-oauth2.json
+SMART on FHIR configured for issuer https://... and audience https://..., from smart.issuer, smart.audience, smart.advertised.jwks.uri
 ```
+
+This module reads no configuration file, so there is no second place to look and no layering rule to
+remember. That was not always true: the authorization server used to be `config/smart-oauth2.json` with
+properties overriding individual keys, and the launch secret `config/smart-secret-key.json`. Both are
+gone, along with the volume a container needed to supply them.
 
 The launchable apps of section 3 are properties throughout, so the same rule applies to them:
 
@@ -683,7 +672,7 @@ is in [ROADMAP.md](ROADMAP.md).
   authentication, and the app this project ships is a public client, which Keycloak answers `403
   {"error":"invalid_request","error_description":"Client not allowed."}`. The endpoint used to be
   derived from the issuer, so every app could discover one and none could use it. It is now advertised
-  only where a deployment states `introspection-endpoint` in `smart-oauth2.json`, which is the case
+  only where a deployment sets `smart.introspection.endpoint`, which is the case
   where a confidential client exists to authenticate to it. `revocation_endpoint` is still derived and
   has not been measured against a public client.
 - **The launch token is decoded twice.** `SmartLaunchOptionSelected` calls `URLDecoder.decode` on a
@@ -708,7 +697,7 @@ entropy, single use and ownership.
 
 `omod`'s `ModuleResourcesTest` covers what the compiler cannot: that every XML resource parses, that no
 comment contains `--` (which XML forbids, and which once stopped this module and took all 31 modules of
-RefApp 3.7.1 down with it, leaving REST answering 404), that only dependencies RefApp 3.7.1 ships are
+the reference application down with it, leaving REST answering 404), that only dependencies it ships are
 required, and that the bypass filter's two URL lists agree.
 
 Two habits worth keeping when adding tests here. **A test must be able to fail** — every guard in this
