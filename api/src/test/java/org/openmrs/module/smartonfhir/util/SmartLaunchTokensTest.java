@@ -29,9 +29,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * These tokens are what convinces the authorization server that a user picked a particular patient,
- * so a forged or replayed one grants access to the wrong record. The tests care most about what
- * must <em>not</em> verify.
+ * These tokens assert which patient was picked, so the tests care most about what must not verify.
  */
 class SmartLaunchTokensTest {
 
@@ -39,11 +37,7 @@ class SmartLaunchTokensTest {
 
 	private static final String PATIENT_UUID = "6a1b2c3d-0000-4444-8888-abcdefabcdef";
 
-	/**
-	 * A fixed key, so that two calls agree. An earlier version generated one with
-	 * {@code new SecureRandom(seed)}, whose seed supplements rather than replaces the default seeding:
-	 * every call produced a different key, which made the wrong-secret test pass for the wrong reason.
-	 */
+	/** A fixed key, so two calls agree; a seeded SecureRandom does not give the same bytes twice. */
 	private static byte[] secret() {
 		byte[] key = new byte[32];
 		for (int i = 0; i < key.length; i++) {
@@ -111,10 +105,7 @@ class SmartLaunchTokensTest {
 			assertNull(SmartLaunchTokens.verify(jwt.serialize(),secret()));
 		}
 
-		/**
-		 * An unsigned token must never be accepted. This is the alg=none substitution: the claims are
-		 * exactly right, and only the absent signature distinguishes it.
-		 */
+		/** The alg=none substitution: the claims are right and only the signature is missing. */
 		@Test
 		@DisplayName("unsigned, with otherwise valid claims")
 		void unsignedIsNotAccepted() {
@@ -162,14 +153,7 @@ class SmartLaunchTokensTest {
 			assertNull(SmartLaunchTokens.sign(new JWTClaimsSet.Builder().subject(USERNAME).build(), new byte[0]));
 		}
 
-		/**
-		 * A short key is a configuration error, not a reason to fall back to something weaker.
-		 * <p>
-		 * This pins the behaviour but cannot pin <em>our</em> check: nimbus rejects a sub-256-bit key as
-		 * well, so removing the explicit length test yields the same null. The check is kept for the error
-		 * message it produces, which names the problem instead of leaving a signing failure to be puzzled
-		 * over.
-		 */
+		/** A short key is a configuration error; our own check exists for the message it produces. */
 		@Test
 		@DisplayName("a secret shorter than HS256 requires never produces a token")
 		void shortSecretIsRefused() {
@@ -192,11 +176,7 @@ class SmartLaunchTokensTest {
 	@DisplayName("reading the authorization server's action token")
 	class UnverifiedRead {
 
-		/**
-		 * This path exists precisely because the token is signed with a key this module does not hold, so
-		 * it must return claims without a secret. What matters is that it is only ever used for
-		 * non-security decisions.
-		 */
+		/** Returns claims without a secret, which is why it may only inform non-security decisions. */
 		@Test
 		@DisplayName("returns claims without needing the signing key")
 		void readsClaimsWithoutTheKey() {

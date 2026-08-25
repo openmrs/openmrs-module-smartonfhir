@@ -28,11 +28,7 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.openmrs.User;
 import org.openmrs.module.smartonfhir.model.SmartSession;
 
-/**
- * The launch handle is what an app exchanges for a patient's identity, so what matters is that it
- * cannot be guessed, cannot be reused, and cannot be redeemed by anyone other than the clinician
- * who started the launch.
- */
+/** A launch handle must not be guessable, reusable, or redeemable by anyone but its owner. */
 class SmartLaunchContextServiceTest {
 
 	private static final String CLINICIAN = "doctor";
@@ -45,8 +41,7 @@ class SmartLaunchContextServiceTest {
 
 	@BeforeEach
 	void setUp() {
-		// A fresh cache per test: the underlying Caffeine cache is static, so tests would otherwise
-		// see each other's handles.
+		// A fresh cache per test, since the underlying Caffeine cache is static.
 		service = new SmartLaunchContextService(new SmartSessionCache());
 	}
 
@@ -108,10 +103,7 @@ class SmartLaunchContextServiceTest {
 			assertEquals(VISIT, session.getVisitUuid());
 		}
 
-		/**
-		 * A launch is one exchange. Permitting a second would only allow the handle, which travels in a URL
-		 * and therefore through logs and referrers, to be replayed.
-		 */
+		/** A launch is one exchange, and the handle travels through logs and referrers on the way. */
 		@Test
 		@DisplayName("works exactly once")
 		void isSingleUse() {
@@ -130,10 +122,7 @@ class SmartLaunchContextServiceTest {
 			    "a handle that reaches another user must not be redeemable by them");
 		}
 
-		/**
-		 * The wrong user spends the handle, rather than leaving it available. Otherwise an attacker who
-		 * guessed a handle could probe usernames until one worked.
-		 */
+		/** The wrong user spends the handle, so a guessed one cannot be probed against usernames. */
 		@Test
 		@DisplayName("a refused attempt still consumes the handle")
 		void wrongUserConsumesTheHandle() {
@@ -174,11 +163,7 @@ class SmartLaunchContextServiceTest {
 	class Ownership {
 
 		/**
-		 * A handle with no recorded owner used to be redeemable by anybody: the check read
-		 * {@code owner != null && !owner.equals(user)}, so a null owner matched everyone rather than
-		 * nobody. It mattered because the owner came from {@code User.getUsername()}, and OpenMRS's own
-		 * admin account has none -- so a launch started during setup or a demo minted a handle bound to
-		 * nothing, which then travelled to the app in a query string.
+		 * A handle with no recorded owner refuses everyone, which matters for accounts with no username.
 		 */
 		@Test
 		@DisplayName("a handle is never issued without an owner")

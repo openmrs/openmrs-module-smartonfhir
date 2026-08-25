@@ -19,16 +19,10 @@ import lombok.Setter;
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class SmartSecretKey {
 
-	@JsonProperty(value = "smart-shared-secret-key", required = true)
+	@JsonProperty(value = "smart_shared_secret_key", required = true)
 	private String smartSharedSecretKey;
 
-	/**
-	 * Deliberately not the generated one.
-	 * <p>
-	 * Lombok's {@code @Data} produced a {@code toString} over the base64 shared secret, which is one
-	 * {@code log.debug("loaded {}", key)} or one interpolated exception message away from writing the
-	 * HMAC secret into a log file. Nothing in the type warned about it.
-	 */
+	// Hand-written so the base64 secret can never reach a log line.
 	@Override
 	public String toString() {
 		return "SmartSecretKey(***)";

@@ -28,33 +28,8 @@ public class SmartConfigServlet extends HttpServlet {
 	private static final ObjectMapper objectMapper = new ObjectMapper();
 
 	/**
-	 * Only what this server can actually do. A discovery document is a contract, and an app that
-	 * believes an unimplemented capability fails in a way that looks like the app's fault.
-	 * <p>
-	 * {@code launch-standalone} and {@code context-standalone-patient} are claimed because the flow has
-	 * been walked end to end in a browser: an app is redirected to the authorization server, the
-	 * clinician signs in with their own OpenMRS credentials, chooses a patient, and the token response
-	 * carries that patient as launch context. They were absent until that was true.
-	 * <p>
-	 * {@code context-ehr-encounter} is claimed on the same terms: an EHR launch naming a visit has been
-	 * walked, and the token response carried that visit back as {@code encounter}. The EHR already
-	 * knows the encounter, so nothing has to be chosen during the launch.
-	 * <p>
-	 * Both EHR context capabilities hold only for the first launch in a browser session. The realm
-	 * tries {@code auth-cookie} before the SMART authenticator, so a second launch reuses the Keycloak
-	 * session, establishes no fresh context, and hands the app whatever the previous launch left --
-	 * including the previous patient. That is a realm-flow defect rather than a module one, and it is
-	 * why these two capabilities are worth re-measuring whenever the flow changes.
-	 * <p>
-	 * Deliberately absent:
-	 * <ul>
-	 * <li>{@code permission-v2}, because granular scopes are parsed but not enforced. Enforcement
-	 * belongs in the FHIR resource providers, not in this module.</li>
-	 * <li>{@code context-standalone-encounter}, because a standalone launch has no encounter to start
-	 * from and there is no screen for choosing one: that is the request
-	 * {@link SmartLaunchOptionSelected} refuses with 501. It is the standalone counterpart that is
-	 * missing, not the EHR one.</li>
-	 * </ul>
+	 * Only what this server can actually do. {@code permission-v2} is absent because granular scopes
+	 * are not enforced, and {@code context-standalone-encounter} has no visit picker.
 	 */
 	private static final String[] CAPABILITIES = new String[] { "launch-ehr", "launch-standalone", "client-public",
 	        "client-confidential-symmetric", "context-ehr-patient", "context-ehr-encounter", "context-standalone-patient",
@@ -75,51 +50,36 @@ public class SmartConfigServlet extends HttpServlet {
 	}
 
 	/**
-	 * Builds the SMART discovery document from the configured authorization server.
-	 * <p>
-	 * Endpoints not stated in the configuration are derived from the issuer using OpenID Connect's
-	 * conventional paths. That derivation is Keycloak-shaped; the endpoints exist in the configuration
-	 * so a deployment on another authorization server can state them instead. Reading them from the
-	 * issuer's own discovery document is the better answer and belongs with the SMART 2.x discovery
-	 * work.
+	 * Builds the SMART discovery document from the configured authorization server. Endpoints left
+	 * unstated are derived from the issuer using Keycloak's conventional paths.
 	 */
 	private SmartConformance buildConformance(SmartOAuth2Config config) {
-		final String issuer = config.getIssuer().replaceAll("/+$", "");
+		// Only the final slash is ever there to strip.
+		final String configured = config.getIssuer();
+		final String issuer = configured.endsWith("/") ? configured.substring(0, configured.length() - 1) : configured;
 
 		SmartConformance conformance = new SmartConformance();
 		conformance.setAuthorizationEndpoint(
 		    orDerived(config.getAuthorizationEndpoint(), issuer, "/protocol/openid-connect/auth"));
 		conformance.setTokenEndpoint(orDerived(config.getTokenEndpoint(), issuer, "/protocol/openid-connect/token"));
-		// Stated only, never derived. Introspection requires client authentication, and the app this
-		// project ships is a public client: Keycloak answers it 403 "Client not allowed." Deriving the
-		// endpoint advertised one every such app could find and none could use, which is the failure that
-		// looks like the app's fault. A deployment that has registered a confidential client for
-		// introspection sets introspection-endpoint and gets it advertised again.
+		// Stated only, never derived: introspection needs a confidential client.
 		conformance.setIntrospectionEndpoint(config.getIntrospectionEndpoint());
 		conformance
 		        .setRevocationEndpoint(orDerived(config.getRevocationEndpoint(), issuer, "/protocol/openid-connect/revoke"));
-		// Without this an app cannot discover how to log anybody out, and logging out of OpenMRS alone
-		// leaves the authorization server's session intact: the next launch is granted silently, as
-		// whoever launched last.
+		// Without this, logging out of OpenMRS leaves the authorization server's session intact.
 		conformance
 		        .setEndSessionEndpoint(orDerived(config.getEndSessionEndpoint(), issuer, "/protocol/openid-connect/logout"));
 		conformance.setRegistrationEndpoint(config.getRegistrationEndpoint());
 		conformance.setTokenEndpointAuthMethodsSupported(new String[] { "client_secret_basic", "private_key_jwt" });
 		conformance.setIssuer(issuer);
-		// What an app is told, which is not necessarily where we fetch keys from: see
-		// SmartOAuth2Config.advertisedJwksUri.
-		conformance.setJwksUri(config.getAdvertisedJwksUri() != null && !config.getAdvertisedJwksUri().trim().isEmpty()
+		// What an app is told, which need not be where we fetch keys from.
+		conformance.setJwksUri(config.getAdvertisedJwksUri() != null && !config.getAdvertisedJwksUri().isBlank()
 		        ? config.getAdvertisedJwksUri().trim()
 		        : SmartAccessTokenVerifierHolder.getResolvedJwksUri());
 		conformance.setGrantTypesSupported(new String[] { "authorization_code", "refresh_token" });
 		// SMART App Launch 2.x mandates S256 and forbids plain, so only S256 is offered.
 		conformance.setCodeChallengeMethodsSupported(new String[] { "S256" });
-		// Only scopes the authorization server will actually grant. The wildcard forms were advertised
-		// here for a while and answered invalid_scope, because expanding them is the authorization
-		// server's job and Keycloak does not: a scope has to exist as a client scope to be requestable.
-		// launch/encounter is granted and honoured on an EHR launch, where the EHR names the visit. A
-		// standalone launch asking for it is refused with 501, because choosing a visit needs a screen
-		// that does not exist -- which is why context-standalone-encounter is not among the capabilities.
+		// Only scopes the authorization server will grant; Keycloak refuses the wildcard forms.
 		conformance.setScopesSupported(new String[] { "openid", "profile", "fhirUser", "launch", "launch/patient",
 		        "launch/encounter", "patient/Patient.rs", "patient/Observation.rs", "patient/Condition.rs",
 		        "patient/Encounter.rs", "offline_access" });
@@ -130,7 +90,7 @@ public class SmartConfigServlet extends HttpServlet {
 	}
 
 	private String orDerived(String configured, String issuer, String path) {
-		return configured != null && !configured.trim().isEmpty() ? configured : issuer + path;
+		return configured != null && !configured.isBlank() ? configured : issuer + path;
 	}
 
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {

@@ -44,37 +44,25 @@ public class SmartConformance {
 	@JsonProperty("revocation_endpoint")
 	private String revocationEndpoint;
 
-	/**
-	 * Where an app sends the clinician to end their session with the authorization server.
-	 * <p>
-	 * Without this an app has no discoverable way to log anybody out, and ending an OpenMRS session
-	 * alone leaves the authorization server's own session intact: the next launch in that browser is
-	 * then granted silently, as the previous clinician.
-	 */
+	/** Where an app sends the clinician to end their session with the authorization server. */
 	@JsonProperty("end_session_endpoint")
 	private String endSessionEndpoint;
 
 	@JsonProperty(value = "capabilities", required = true)
 	private String[] capabilities;
 
-	/**
-	 * REQUIRED by SMART App Launch 2.x. Its absence is a conformance failure in its own right, and an
-	 * app has no way to discover which authorization server issued the tokens it is validating.
-	 */
+	/** Identification for the authorization server that issues this token. */
 	@JsonProperty(value = "issuer", required = true)
 	private String issuer;
 
-	/** REQUIRED by SMART App Launch 2.x, so an app can verify token signatures itself. */
+	/** Used to verify token signatures. */
 	@JsonProperty(value = "jwks_uri", required = true)
 	private String jwksUri;
 
 	@JsonProperty(value = "grant_types_supported", required = true)
 	private String[] grantTypesSupported;
 
-	/**
-	 * REQUIRED by SMART App Launch 2.x, which mandates S256 and forbids {@code plain}. Advertising it
-	 * is how an app knows PKCE is available at all.
-	 */
+	/** Used to support PKCE. */
 	@JsonProperty(value = "code_challenge_methods_supported", required = true)
 	private String[] codeChallengeMethodsSupported;
 }

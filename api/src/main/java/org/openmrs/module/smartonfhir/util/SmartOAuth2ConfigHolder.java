@@ -22,12 +22,8 @@ import org.openmrs.module.smartonfhir.model.SmartOAuth2Config;
 import org.openmrs.util.OpenmrsUtil;
 
 /**
- * Loads {@link SmartOAuth2Config} from {@code {application data
- * directory}/config/smart-oauth2.json}.
- * <p>
- * There is deliberately no classpath fallback and no built-in default. Which authorization server
- * to trust is a deployment decision, and a shipped default would mean a module that appears
- * configured while trusting something the deployment never chose.
+ * Loads {@link SmartOAuth2Config} from {@code config/smart-oauth2.json}. There is deliberately no
+ * default: which authorization server to trust is a deployment decision.
  */
 @Slf4j
 public class SmartOAuth2ConfigHolder {
@@ -49,9 +45,7 @@ public class SmartOAuth2ConfigHolder {
 			synchronized (SmartOAuth2ConfigHolder.class) {
 				if (!loadAttempted) {
 					load();
-					// Only latch on success. Latching either way meant one transient failure to
-					// read the file -- a mount not ready, a moment's bad permissions -- left
-					// SMART unconfigured for the life of the JVM, with nothing able to reset it.
+					// Latched on success only, so a transient read failure is retried rather than final.
 					loadAttempted = config != null;
 				}
 			}
@@ -60,10 +54,7 @@ public class SmartOAuth2ConfigHolder {
 		return config;
 	}
 
-	/**
-	 * Discards the cached configuration so the next read reloads it. Intended for tests and for picking
-	 * up an edited file without a restart.
-	 */
+	/** Discards the cached configuration so the next read reloads it. */
 	public static synchronized void reset() {
 		config = null;
 		loadAttempted = false;

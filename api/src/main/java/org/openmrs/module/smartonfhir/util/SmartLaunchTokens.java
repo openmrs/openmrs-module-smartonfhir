@@ -23,54 +23,29 @@ import com.nimbusds.jwt.SignedJWT;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * The short-lived HMAC-signed tokens exchanged with the authorization server during a SMART launch.
- * <p>
- * This replaces Keycloak's {@code JWSBuilder} / {@code JWSInput} / {@code TokenVerifier}.
- * Keycloak's Java adapters were removed after Keycloak 25, and using its server-side JOSE classes
- * here would put Keycloak on this module's classpath for no reason other than crypto.
- * nimbus-jose-jwt does the same job without tying the module to one authorization server.
- * <p>
- * Two kinds of token pass through a launch, and they are <em>not</em> equally trustworthy:
- * <ul>
- * <li>The action token the authorization server puts in the redirect. It is signed with the
- * authorization server's own key, which this module does not hold, so it can only be
- * {@link #readUnverifiedClaims(String) read}, never trusted.</li>
- * <li>The token this module and the authorization server exchange, signed with the shared secret.
- * That one is {@link #verify(String, byte[]) verified}, and it is what carries the username and
- * launch context.</li>
- * </ul>
+ * The short-lived HMAC-signed tokens exchanged during a SMART launch. The action token can only be
+ * {@link #readUnverifiedClaims(String) read}; ours is {@link #verify(String, byte[]) verified}.
  */
 @Slf4j
 public final class SmartLaunchTokens {
 
-	/**
-	 * How long a token this module signs stays valid. A browser redirect follows immediately, so this
-	 * is generous; the previous implementation set no expiry at all, leaving the tokens replayable
-	 * indefinitely.
-	 */
+	/** How long a token this module signs stays valid; a browser redirect follows immediately. */
 	private static final long LIFETIME_MILLIS = 5 * 60 * 1000L;
 
-	/**
-	 * HS256 needs a key of at least 256 bits. A shorter one is a configuration error worth reporting
-	 * rather than a signature failure to puzzle over later.
-	 */
+	/** HS256 needs at least 256 bits; anything shorter is reported as a configuration error. */
 	private static final int MINIMUM_SECRET_BYTES = 32;
 
 	private SmartLaunchTokens() {
 	}
 
 	/**
-	 * Reads a token's claims <strong>without verifying its signature</strong>, for the action token
-	 * issued by the authorization server, which is signed with a key this module does not hold.
-	 * <p>
-	 * Nothing security-relevant may rest on what this returns. It is used to pull out the nested token
-	 * that <em>is</em> verified, and to see which launch context the app asked for so the right picker
-	 * is shown.
+	 * Reads a token's claims <strong>without verifying its signature</strong>, so nothing
+	 * security-relevant may rest on the result.
 	 *
 	 * @return the claims, or null if the value is not a well-formed JWS
 	 */
 	public static JWTClaimsSet readUnverifiedClaims(String compactJws) {
-		if (compactJws == null || compactJws.trim().isEmpty()) {
+		if (compactJws == null || compactJws.isBlank()) {
 			return null;
 		}
 
@@ -90,7 +65,7 @@ public final class SmartLaunchTokens {
 	 *         logged; callers should answer with a generic failure rather than relaying it.
 	 */
 	public static JWTClaimsSet verify(String compactJws, byte[] secret) {
-		if (compactJws == null || compactJws.trim().isEmpty()) {
+		if (compactJws == null || compactJws.isBlank()) {
 			log.error("No token to verify");
 			return null;
 		}
@@ -111,9 +86,7 @@ public final class SmartLaunchTokens {
 			JWTClaimsSet claims = jwt.getJWTClaimsSet();
 			Date expiration = claims.getExpirationTime();
 
-			// A missing exp is refused, not tolerated. sign() always stamps one, so a token without it did
-			// not come from here -- and accepting it reintroduced exactly the indefinite replay this class
-			// exists to prevent, only requiring the shared secret to exploit.
+			// sign() always stamps an expiry, so a token without one did not come from here.
 			if (expiration == null) {
 				log.error("Token carries no expiry; refusing it");
 				return null;

@@ -44,8 +44,7 @@ public class SmartAccessConfirmation extends HttpServlet {
 		User user = Context.getAuthenticatedUser();
 
 		if (user == null) {
-			// Not logged in yet: hand control back with no app token so the flow can
-			// prompt for credentials.
+			// Not logged in yet, so hand control back with no app token and let the flow prompt.
 			res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", ""));
 			return;
 		}

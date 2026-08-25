@@ -54,8 +54,8 @@ public class SmartSecretKeyHolder {
 		try (InputStream in = new BufferedInputStream(new FileInputStream(file))) {
 			String encoded = objectMapper.readValue(in, SmartSecretKey.class).getSmartSharedSecretKey();
 
-			if (encoded == null || encoded.trim().isEmpty()) {
-				log.error("{} does not set 'smart-shared-secret-key'", file.getAbsolutePath());
+			if (encoded == null || encoded.isBlank()) {
+				log.error("{} does not set 'smart_shared_secret_key'", file.getAbsolutePath());
 				return;
 			}
 
@@ -65,7 +65,7 @@ public class SmartSecretKeyHolder {
 			log.error("Could not read {}", file.getAbsolutePath(), e);
 		}
 		catch (IllegalArgumentException e) {
-			log.error("The value of 'smart-shared-secret-key' in {} is not valid base64", file.getAbsolutePath(), e);
+			log.error("The value of 'smart_shared_secret_key' in {} is not valid base64", file.getAbsolutePath(), e);
 		}
 	}
 }

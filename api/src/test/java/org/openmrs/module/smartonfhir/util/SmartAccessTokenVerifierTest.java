@@ -44,9 +44,7 @@ import org.openmrs.module.smartonfhir.model.SmartOAuth2Config;
 import org.openmrs.module.smartonfhir.util.SmartAccessTokenVerifier.SmartAccessToken;
 
 /**
- * This is the gate on the FHIR API: whatever it accepts becomes an authenticated OpenMRS user. The
- * tests are weighted towards tokens that are plausible but must be refused, since those are what an
- * attacker actually presents.
+ * The gate on the FHIR API, so these lean towards tokens that are plausible but must be refused.
  */
 class SmartAccessTokenVerifierTest {
 
@@ -71,11 +69,7 @@ class SmartAccessTokenVerifierTest {
 		serverKey = new RSAKeyGenerator(2048).keyID("server").generate();
 		attackerKey = new RSAKeyGenerator(2048).keyID("attacker").generate();
 
-		// Only the server's public key is published, exactly as a real JWKS would be.
-		// An HMAC key is published alongside the RSA one deliberately. With only an RSA key, an HS256
-		// token is refused for having no key of a matching type, so PERMITTED_ALGORITHMS is never what
-		// refuses it -- and the algorithm-confusion test below passed even with HS256 added to that
-		// whitelist. Publishing an oct key makes the whitelist load-bearing.
+		// Published on purpose, so the allow-list is what refuses HS256 rather than a missing key.
 		octKey = new OctetSequenceKeyGenerator(256).keyID("hmac").generate();
 
 		JWKSource<SecurityContext> published = new ImmutableJWKSet<>(
@@ -106,12 +100,20 @@ class SmartAccessTokenVerifierTest {
 	class Accepted {
 
 		@Test
+		@DisplayName("is accepted with whitespace around it, so no trimming is needed here")
+		void acceptsATokenWithSurroundingWhitespace() throws Exception {
+			String token = signedBy(serverKey, validClaims().build());
+
+			assertNotNull(verifier.verify("  " + token + "\n"), "nimbus tolerates surrounding whitespace itself");
+		}
+
+		@Test
 		@DisplayName("is accepted, and its user is extracted")
 		void acceptsAValidToken() throws Exception {
 			SmartAccessToken token = verifier.verify(signedBy(serverKey, validClaims().build()));
 
 			assertNotNull(token, "a correctly issued token must be accepted");
-			assertEquals(USERNAME, token.getUsername());
+			assertEquals(USERNAME, token.username());
 		}
 
 		@Test
@@ -120,8 +122,8 @@ class SmartAccessTokenVerifierTest {
 			SmartAccessToken token = verifier.verify(signedBy(serverKey,
 			    validClaims().claim("patient", "patient-uuid").claim("encounter", "visit-uuid").build()));
 
-			assertEquals("patient-uuid", token.getPatient());
-			assertEquals("visit-uuid", token.getEncounter());
+			assertEquals("patient-uuid", token.patient());
+			assertEquals("visit-uuid", token.encounter());
 		}
 
 		@Test
@@ -130,7 +132,7 @@ class SmartAccessTokenVerifierTest {
 			SmartAccessToken token = verifier.verify(
 			    signedBy(serverKey, validClaims().claim("scope", "openid launch/patient patient/Observation.rs").build()));
 
-			assertEquals(3, token.getScopes().size());
+			assertEquals(3, token.scopes().size());
 			assertTrue(token.hasScope("patient/Observation.rs"));
 			assertTrue(token.hasScope("launch/patient"));
 		}
@@ -141,9 +143,9 @@ class SmartAccessTokenVerifierTest {
 			SmartAccessToken token = verifier.verify(signedBy(serverKey, validClaims().build()));
 
 			assertNotNull(token);
-			assertNull(token.getPatient());
-			assertNull(token.getEncounter());
-			assertTrue(token.getScopes().isEmpty());
+			assertNull(token.patient());
+			assertNull(token.encounter());
+			assertTrue(token.scopes().isEmpty());
 		}
 
 		@Test
@@ -167,10 +169,7 @@ class SmartAccessTokenVerifierTest {
 			    "a token signed with an unpublished key must not be accepted");
 		}
 
-		/**
-		 * The algorithm-confusion attack: the attacker re-signs with HMAC, hoping the verifier will treat
-		 * the RSA public key as a shared secret.
-		 */
+		/** Algorithm confusion: re-signed with HMAC, hoping the RSA public key is read as a secret. */
 		@Test
 		@DisplayName("re-signed with HMAC, using the server's public key as the secret")
 		void algorithmConfusion() throws Exception {
@@ -181,12 +180,7 @@ class SmartAccessTokenVerifierTest {
 			assertNull(verifier.verify(jwt.serialize()), "an HMAC-signed access token must never be accepted");
 		}
 
-		/**
-		 * Distinct from the case above: this one names a key the server really does publish and really
-		 * would verify with, so the only thing left to refuse it is the algorithm whitelist. Adding
-		 * {@code HS256} to {@code PERMITTED_ALGORITHMS} makes this test fail, which is the property the
-		 * case above cannot check.
-		 */
+		/** Names a key the server really publishes, so only the algorithm allow-list can refuse it. */
 		@Test
 		@DisplayName("signed with HMAC using a key the server publishes")
 		void hmacSignedWithAPublishedKey() throws Exception {
@@ -211,10 +205,7 @@ class SmartAccessTokenVerifierTest {
 			    "a token from another issuer is not a token for this server");
 		}
 
-		/**
-		 * The replay this check exists to prevent: a legitimate token, correctly signed by the same
-		 * authorization server, but minted for a different FHIR server.
-		 */
+		/** A legitimate token from the same authorization server, but minted for another FHIR server. */
 		@Test
 		@DisplayName("issued for a different FHIR server")
 		void wrongAudience() throws Exception {
@@ -235,10 +226,7 @@ class SmartAccessTokenVerifierTest {
 			assertNull(verifier.verify(signedBy(serverKey,validClaims().expirationTime(new Date(System.currentTimeMillis()-600_000)).build())));
 		}
 
-		/**
-		 * A token with no expiry would be valid forever. nimbus only enforces claims declared required, so
-		 * this pins that exp is among them.
-		 */
+		/** nimbus only enforces claims declared required, so this pins that exp is one of them. */
 		@Test
 		@DisplayName("carrying no expiry at all")
 		void noExpiry() throws Exception {
@@ -309,14 +297,48 @@ class SmartAccessTokenVerifierTest {
 		void usernameClaimIsConfigurable() throws Exception {
 			SmartOAuth2Config custom = config();
 			custom.setUsernameClaim("openmrs_user");
-			SmartAccessTokenVerifier custom_verifier = new SmartAccessTokenVerifier(custom,
+			SmartAccessTokenVerifier customVerifier = new SmartAccessTokenVerifier(custom,
 			        new ImmutableJWKSet<>(new JWKSet(serverKey.toPublicJWK())));
 
-			SmartAccessToken token = custom_verifier
+			SmartAccessToken token = customVerifier
 			        .verify(signedBy(serverKey, validClaims().claim("openmrs_user", "otheruser").build()));
 
 			assertNotNull(token);
-			assertEquals("otheruser", token.getUsername(), "the configured claim should be read, not preferred_username");
+			assertEquals("otheruser", token.username(), "the configured claim should be read, not preferred_username");
+		}
+
+		@Test
+		@DisplayName("configuring a narrower set of algorithms refuses one that was dropped")
+		void signatureAlgorithmsAreConfigurable() throws Exception {
+			SmartOAuth2Config esOnly = config();
+			esOnly.setSignatureAlgorithms("ES256");
+			SmartAccessTokenVerifier narrow = new SmartAccessTokenVerifier(esOnly,
+			        new ImmutableJWKSet<>(new JWKSet(serverKey.toPublicJWK())));
+
+			assertNull(narrow.verify(signedBy(serverKey, validClaims().build())),
+			    "an RS256 token must be refused once only ES256 is configured");
+		}
+
+		@Test
+		@DisplayName("a symmetric algorithm cannot be configured back in")
+		void symmetricAlgorithmsAreNeverHonoured() throws Exception {
+			SmartOAuth2Config hmac = config();
+			hmac.setSignatureAlgorithms("HS256");
+			SmartAccessTokenVerifier stillAsymmetric = new SmartAccessTokenVerifier(hmac,
+			        new ImmutableJWKSet<>(new JWKSet(Arrays.asList((JWK) serverKey.toPublicJWK(), (JWK) octKey))));
+
+			assertNotNull(stillAsymmetric.verify(signedBy(serverKey, validClaims().build())),
+			    "an unusable configuration falls back to the asymmetric set rather than honouring HS256");
+		}
+
+		@Test
+		@DisplayName("a claim that is not a bare string is not coerced into one")
+		void structuredClaimsAreNotCoerced() throws Exception {
+			SmartAccessToken token = verifier
+			        .verify(signedBy(serverKey, validClaims().claim("patient", Arrays.asList("a", "b")).build()));
+
+			assertNotNull(token);
+			assertNull(token.patient(), "a list is not a patient id");
 		}
 
 		@Test
@@ -325,7 +347,7 @@ class SmartAccessTokenVerifierTest {
 			SmartAccessToken token = verifier
 			        .verify(signedBy(serverKey, validClaims().claim("scope", "patient/Observation.rs").build()));
 
-			assertThrows(UnsupportedOperationException.class, () -> token.getScopes().add("patient/*.cruds"));
+			assertThrows(UnsupportedOperationException.class, () -> token.scopes().add("patient/*.cruds"));
 		}
 	}
 }
