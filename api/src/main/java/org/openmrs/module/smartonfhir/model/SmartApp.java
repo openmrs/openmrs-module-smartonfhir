@@ -9,47 +9,48 @@
  */
 package org.openmrs.module.smartonfhir.model;
 
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import javax.persistence.Column;
+import javax.persistence.Entity;
+import javax.persistence.GeneratedValue;
+import javax.persistence.GenerationType;
+import javax.persistence.Id;
+import javax.persistence.Table;
 
-/** A SMART app this deployment permits to be launched. */
-@Data
-@NoArgsConstructor
-public class SmartApp {
+import lombok.Getter;
+import lombok.Setter;
+import org.openmrs.BaseOpenmrsMetadata;
 
-	/** How a launch names this app. Stable, and safe to put in a URL. */
-	private String id;
+/** A SMART app this deployment permits to be launched, addressed by its uuid. */
+@Entity
+@Table(name = "smartonfhir_app")
+@Getter
+@Setter
+public class SmartApp extends BaseOpenmrsMetadata {
 
-	/** What a clinician sees when choosing the app. */
-	private String name;
-
-	/** Optional, shown alongside the name. */
-	private String description;
+	@Id
+	@GeneratedValue(strategy = GenerationType.IDENTITY)
+	@Column(name = "smartonfhir_app_id")
+	private Integer smartAppId;
 
 	/** The app's launch URL, to which {@code iss} and {@code launch} are appended. */
+	@Column(name = "launch_url", length = 1024, nullable = false)
 	private String launchUrl;
 
 	/** The app's client id at the authorization server, recorded only to identify its registration. */
+	@Column(name = "client_id", length = 255)
 	private String clientId;
 
 	/** {@code patient} or {@code encounter}; a launch asking for anything else is refused. */
+	@Column(name = "launch_context", length = 50, nullable = false)
 	private String launchContext = "patient";
 
-	public SmartApp(SmartApp other) {
-		this.id = other.id;
-		this.name = other.name;
-		this.description = other.description;
-		this.launchUrl = other.launchUrl;
-		this.clientId = other.clientId;
-		this.launchContext = other.launchContext;
+	@Override
+	public Integer getId() {
+		return smartAppId;
 	}
 
-	/** An entry missing either of these would be listed and then fail when chosen, so it is refused. */
-	public boolean isUsable() {
-		return isNotBlank(id) && isNotBlank(launchUrl);
-	}
-
-	private static boolean isNotBlank(String value) {
-		return value != null && !value.isBlank();
+	@Override
+	public void setId(Integer id) {
+		this.smartAppId = id;
 	}
 }

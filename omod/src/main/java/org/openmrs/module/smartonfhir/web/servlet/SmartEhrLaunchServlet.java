@@ -23,8 +23,8 @@ import org.apache.http.HttpStatus;
 import org.openmrs.User;
 import org.openmrs.api.APIAuthenticationException;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.smartonfhir.api.SmartAppService;
 import org.openmrs.module.smartonfhir.model.SmartApp;
-import org.openmrs.module.smartonfhir.util.SmartAppRegistry;
 import org.openmrs.module.smartonfhir.util.SmartLaunchContextService;
 import org.openmrs.module.smartonfhir.web.util.FhirBaseAddressStrategy;
 
@@ -56,11 +56,11 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 			return;
 		}
 
-		final SmartApp app = SmartAppRegistry.getApp(appId);
+		final SmartApp app = Context.getService(SmartAppService.class).getSmartAppByUuid(appId);
 
-		if (app == null) {
+		if (app == null || app.getRetired()) {
 			// Refused rather than launched: an unregistered app is one this deployment has not permitted.
-			log.error("Refused a launch for '{}', which is not in the app registry", appId);
+			log.error("Refused a launch for '{}', which is not a registered app", appId);
 			resp.sendError(HttpStatus.SC_NOT_FOUND, "No such app");
 			return;
 		}
