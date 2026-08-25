@@ -60,7 +60,10 @@ public class SmartAppServiceImpl extends BaseOpenmrsService implements SmartAppS
 		SmartApp existing = dao.getByName(app.getName().trim());
 
 		if (existing != null && !existing.getUuid().equals(app.getUuid())) {
-			throw new ValidationException("A SMART app named '" + app.getName().trim() + "' is already registered");
+			// A retired app still holds its name, and is absent from the list a caller just read, so
+			// saying only "already registered" sends them looking for something they cannot see.
+			throw new ValidationException("A SMART app named '" + app.getName().trim() + "' is already registered"
+			        + (existing.getRetired() ? ", though retired; purge it or give this one another name" : ""));
 		}
 
 		return dao.saveOrUpdate(app);

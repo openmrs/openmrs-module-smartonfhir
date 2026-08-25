@@ -9,6 +9,7 @@
  */
 package org.openmrs.module.smartonfhir.web.resource;
 
+import org.openmrs.api.ValidationException;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.api.SmartAppService;
 import org.openmrs.module.smartonfhir.model.SmartApp;
@@ -19,6 +20,7 @@ import org.openmrs.module.webservices.rest.web.representation.Representation;
 import org.openmrs.module.webservices.rest.web.resource.impl.DelegatingResourceDescription;
 import org.openmrs.module.webservices.rest.web.resource.impl.MetadataDelegatingCrudResource;
 import org.openmrs.module.webservices.rest.web.resource.impl.NeedsPaging;
+import org.openmrs.module.webservices.rest.web.response.IllegalRequestException;
 import org.openmrs.module.webservices.rest.web.response.ResponseException;
 
 /**
@@ -41,7 +43,14 @@ public class SmartAppResource extends MetadataDelegatingCrudResource<SmartApp> {
 
 	@Override
 	public SmartApp save(SmartApp app) {
-		return service().saveSmartApp(app);
+		try {
+			return service().saveSmartApp(app);
+		}
+		catch (ValidationException e) {
+			// A refused registration is the caller's mistake, so it is answered as one rather than as a
+			// serialised exception.
+			throw new IllegalRequestException(e.getMessage());
+		}
 	}
 
 	@Override
