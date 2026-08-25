@@ -9,12 +9,22 @@
  */
 package org.openmrs.module.smartonfhir.model;
 
-import lombok.Data;
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
-public class SmartSession {
-	
-	private String visitUuid;
-	
-	private String patientUuid;
+@Getter
+@Setter
+@JsonInclude(JsonInclude.Include.NON_EMPTY)
+public class SmartSecretKey {
+
+	@JsonProperty(value = "smart_shared_secret_key", required = true)
+	private String smartSharedSecretKey;
+
+	// Hand-written so the base64 secret can never reach a log line.
+	@Override
+	public String toString() {
+		return "SmartSecretKey(***)";
+	}
 }

@@ -7,16 +7,17 @@
  * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
  * graphic logo is a trademark of OpenMRS Inc.
  */
-package org.openmrs.module.smartonfhir.web;
+package org.openmrs.module.smartonfhir.model;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 @Data
-@JsonInclude(JsonInclude.Include.NON_EMPTY)
-public class SmartSecretKey {
-	
-	@JsonProperty(value = "smart-shared-secret-key", required = true)
-	private String smartSharedSecretKey;
+public class SmartSession {
+
+	private String visitUuid;
+
+	private String patientUuid;
+
+	/** The user this launch was created for; only they can redeem the handle. */
+	private String username;
 }

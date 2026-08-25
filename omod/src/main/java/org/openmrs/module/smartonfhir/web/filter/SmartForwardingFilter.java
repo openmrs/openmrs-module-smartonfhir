@@ -24,11 +24,11 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 public class SmartForwardingFilter implements Filter {
-	
+
 	@Override
 	public void init(FilterConfig filterConfig) {
 	}
-	
+
 	@Override
 	public void doFilter(ServletRequest req, ServletResponse res, FilterChain chain) throws IOException, ServletException {
 		if (req instanceof HttpServletRequest && res instanceof HttpServletResponse) {
@@ -37,17 +37,17 @@ public class SmartForwardingFilter implements Filter {
 				req.getRequestDispatcher("/ms/smartConfig").forward(req, res);
 				return;
 			}
-			
+
 			if (request.getRequestURI().contains("/smartAccessConfirmation")) {
 				req.getRequestDispatcher("/ms/smartAccessConfirmation").forward(req, res);
 				return;
 			}
-			
+
 			if (request.getRequestURI().endsWith("/smartLaunchOptionSelected")) {
 				req.getRequestDispatcher("/ms/smartLaunchOptionSelected").forward(req, res);
 				return;
 			}
-			
+
 			if (request.getRequestURI().contains("/ms/smartEhrLaunchServlet")) {
 				req.getRequestDispatcher("/ms/smartEhrLaunchServlet").forward(req, res);
 				return;
@@ -59,9 +59,9 @@ public class SmartForwardingFilter implements Filter {
 		}
 		chain.doFilter(req, res);
 	}
-	
+
 	@Override
 	public void destroy() {
-		
+
 	}
 }

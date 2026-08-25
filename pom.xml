@@ -151,30 +151,6 @@
 				<scope>provided</scope>
 			</dependency>
 			<dependency>
-				<groupId>org.keycloak</groupId>
-				<artifactId>keycloak-servlet-filter-adapter</artifactId>
-				<version>${keycloakVersion}</version>
-				<exclusions>
-					<exclusion>
-						<groupId>com.fasterxml.jackson.core</groupId>
-						<artifactId>jackson-core</artifactId>
-					</exclusion>
-					<exclusion>
-						<groupId>com.fasterxml.jackson.core</groupId>
-						<artifactId>jackson-databind</artifactId>
-					</exclusion>
-					<exclusion>
-						<groupId>com.fasterxml.jackson.core</groupId>
-						<artifactId>jackson-annotations</artifactId>
-					</exclusion>
-				</exclusions>
-			</dependency>
-			<dependency>
-				<groupId>org.keycloak</groupId>
-				<artifactId>keycloak-authz-client</artifactId>
-				<version>${keycloakVersion}</version>
-			</dependency>
-			<dependency>
 				<groupId>org.projectlombok</groupId>
 				<artifactId>lombok</artifactId>
 				<version>${lombokVersion}</version>
@@ -216,6 +192,26 @@
 				<artifactId>fhir2-omod</artifactId>
 				<version>${fhir2Version}</version>
 				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.openmrs.module</groupId>
+				<artifactId>authentication-api</artifactId>
+				<version>${authenticationVersion}</version>
+				<scope>provided</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.openmrs.module</groupId>
+				<artifactId>authentication-omod</artifactId>
+				<version>${authenticationVersion}</version>
+				<scope>provided</scope>
+			</dependency>
+			<!-- Validates SMART access tokens. Chosen over keycloak-core so that no
+			     Keycloak artifact appears on the OpenMRS module's classpath: swapping in a
+			     different authorization server stays a configuration change. -->
+			<dependency>
+				<groupId>com.nimbusds</groupId>
+				<artifactId>nimbus-jose-jwt</artifactId>
+				<version>${nimbusVersion}</version>
 			</dependency>
 			<dependency>
 				<groupId>org.junit</groupId>
@@ -589,8 +585,9 @@
 		<lombokMavenPluginVersion>1.18.20.0</lombokMavenPluginVersion>
 		<openmrsPlatformVersion>2.8.8</openmrsPlatformVersion>
 		<openmrsPlatformToolsVersion>2.8.8</openmrsPlatformToolsVersion>
-		<keycloakVersion>14.0.0</keycloakVersion>
 		<fhir2Version>4.2.0</fhir2Version>
+		<authenticationVersion>2.3.0</authenticationVersion>
+		<nimbusVersion>9.48</nimbusVersion>
 		<junitVersion>5.11.4</junitVersion>
 		<mockitoVersion>5.14.2</mockitoVersion>
 		<caffeineVersion>2.9.3</caffeineVersion>

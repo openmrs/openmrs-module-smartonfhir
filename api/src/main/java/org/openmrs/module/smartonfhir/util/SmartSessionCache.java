@@ -11,38 +11,41 @@ package org.openmrs.module.smartonfhir.util;
 
 import java.util.concurrent.TimeUnit;
 
+import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
-import com.github.benmanes.caffeine.cache.LoadingCache;
 import org.openmrs.module.smartonfhir.model.SmartSession;
 
 public class SmartSessionCache {
-	
-	private static LoadingCache<String, SmartSession> cache;
-	
-	public SmartSessionCache() {
-		if (cache == null) {
-			cache = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES).maximumSize(500).recordStats()
-			        .build(key -> null);
-		}
+
+	/**
+	 * Built once so concurrent launches share one cache. It lives in this JVM only, as does the
+	 * {@code UserContext} a launch already depends on.
+	 */
+	private static final Cache<String, SmartSession> CACHE = Caffeine.newBuilder().expireAfterWrite(5, TimeUnit.MINUTES)
+	        .maximumSize(500).recordStats().build();
+
+	/** Removes the entry and returns what it held, in one operation, so a handle is used once. */
+	public SmartSession take(String key) {
+		return key == null ? null : CACHE.asMap().remove(key);
 	}
-	
+
 	public boolean put(String key, SmartSession value) {
-		cache.put(key, value);
+		CACHE.put(key, value);
 		return Boolean.TRUE;
 	}
-	
+
 	public SmartSession get(String key) {
 		try {
-			return cache.get(key);
+			return CACHE.getIfPresent(key);
 		}
 		catch (Exception e) {
 			return null;
 		}
 	}
-	
+
 	public boolean clear(String key) {
-		cache.invalidate(key);
-		
+		CACHE.invalidate(key);
+
 		return Boolean.TRUE;
 	}
 }
