@@ -72,9 +72,7 @@ public class SmartAccessConfirmation extends HttpServlet {
 			claims.claim(VISIT_NAME, smartSession.getVisitUuid());
 		}
 
-		// Who is using the application, as a FHIR reference. SMART puts this in the id_token as fhirUser,
-		// and only OpenMRS can work it out: Keycloak knows a username, and the resource it names is a
-		// Practitioner keyed by the provider record behind that user's person.
+		// The id_token's fhirUser claim, which only OpenMRS can resolve to a Practitioner.
 		String fhirUser = SmartFhirUser.reference(user);
 
 		if (fhirUser != null) {
