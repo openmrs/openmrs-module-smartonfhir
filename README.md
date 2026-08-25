@@ -132,38 +132,41 @@ openssl rand -base64 32
 Keep it out of anything you commit. On the reference application image it is
 `OMRS_EXTRA_SMART_LAUNCH_SECRET`, which is where a secret belongs rather than in a file beside the code.
 
-### 3. `smart.app.*` — the launchable apps
+### 3. The launchable apps
 
-Which apps may be launched from a chart, and where each one's launch is sent. An EHR launch names an
-app by id and the address is looked up here; **an app this deployment has not declared cannot be
+Which apps may be launched from a chart, and where each one's launch is sent. A launch names an app by
+uuid and the address is looked up server-side; **an app this deployment has not registered cannot be
 launched at all.** That is the point — the launch URL used to come from a request parameter, which made
 the launch endpoint an open redirector for single-use launch handles.
 
-In `openmrs-runtime.properties`, as `smart.app.<id>.<field>`, where the id is yours to choose:
+Apps live in the database, not in configuration, and are managed over REST at
+`/ws/rest/v1/smartapp`:
 
-```properties
-smart.app.growthchart.name          = Growth Chart
-smart.app.growthchart.description   = Plots weight and height against WHO reference curves
-smart.app.growthchart.clientid      = growth-chart
-smart.app.growthchart.launchurl     = https://growth.example.org/launch
-smart.app.growthchart.launchcontext = patient
+```bash
+curl -u admin:Admin123 -X POST http://localhost/openmrs/ws/rest/v1/smartapp \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Growth Chart",
+       "description":"Plots weight and height against WHO reference curves",
+       "launchUrl":"https://growth.example.org/launch",
+       "clientId":"growth-chart",
+       "launchContext":"patient"}'
 ```
 
-`launchurl` is the only field an app cannot do without; an app declared without one is dropped rather
-than listed, because it would otherwise appear in a list of apps and then fail when chosen.
-`launchcontext` is `patient` (the default) or `encounter`, and a launch asking for something else is
-refused. `clientid` is recorded so a deployment can tell which Keycloak registration an app belongs to;
-the launch does not use it, since the app presents its own.
+`name` and `launchUrl` are required. `launchContext` is `patient` (the default) or `encounter`, and a
+launch asking for something else is refused. `clientId` is recorded so a deployment can tell which
+Keycloak registration an app belongs to; the launch does not use it, since the app presents its own.
 
-The field names are lower case and unpunctuated — `launchurl`, not `launchUrl`. That is not a style
-choice: the image lower-cases the variables it turns into properties, so a camel-cased key would arrive
-as something no reader is looking for.
+A registration that could not be launched is refused with `400` rather than stored — no name, no launch
+URL, a launch URL that is not `http` or `https`, an unknown launch context, or a name another app
+already holds. So an app never appears in a chart menu and then fails when chosen.
 
-Runtime properties rather than a file of the module's own, because that is where OpenMRS keeps
-server-side configuration — the same file `InitializationFilter` writes at setup — and because every
-deployment already has a way to set them. Global properties were the other candidate and are
-deliberately not used: those are editable through the administration UI, and a launch allowlist the web
-tier can rewrite gives back much of what looking the address up was for.
+Reading the list needs *Get SMART Apps*; registering, editing and retiring need *Manage SMART Apps*.
+`GET` with no `includeAll` omits retired apps, so retiring one takes it out of the menu while keeping
+the record.
+
+The database rather than configuration because a registry that needs a restart to change is a registry
+nobody maintains: runtime properties are read once at startup, and five keys per app does not scale
+past a demonstration.
 
 ### Configuring from the environment instead
 
@@ -196,48 +199,31 @@ remember. That was not always true: the authorization server used to be `config/
 properties overriding individual keys, and the launch secret `config/smart-secret-key.json`. Both are
 gone, along with the volume a container needed to supply them.
 
-The launchable apps of section 3 are properties throughout, so the same rule applies to them:
+The launchable apps of section 3 are **not** among these. They live in the database, so registering one
+is a REST call rather than a variable, and takes effect without a restart.
 
-```bash
-OMRS_EXTRA_SMART_APP_GROWTHCHART_LAUNCHURL=https://growth.example.org/launch
-OMRS_EXTRA_SMART_APP_GROWTHCHART_NAME=Growth Chart
-```
-
-**An app id set this way cannot contain a hyphen,** because `_` becomes `.` and nothing maps to `-`.
-Write `growth_chart` (as `..._APP_GROWTH__CHART_...`) if you want a word break in the id.
-
-**Un-registering an app is not symmetrical, and this catches people.** The image appends what it
-derives into `{data directory}/openmrs-runtime.properties` and keeps whatever that file already had, so
-the property outlives the variable: deleting `OMRS_EXTRA_SMART_APP_GROWTHCHART_LAUNCHURL` from the
-environment and recreating the container leaves `smart.app.growthchart.launchurl` sitting in the file
-on the data volume, and the app stays registered. To remove an app, delete its lines from that file.
-This is the image's behaviour rather than the module's, and it applies to every `smart.*` property on
-this page.
+**A property outlives the variable that set it.** The image appends what it derives into
+`{data directory}/openmrs-runtime.properties` and keeps whatever that file already had, so deleting a
+variable from the environment and recreating the container leaves the property sitting on the data
+volume. To remove one, delete its line from that file. This is the image's behaviour rather than the
+module's.
 
 **Changing any of these needs a restart.** OpenMRS reads the runtime properties into memory once at
 startup and never re-reads the file, so no module can pick up an edit while running.
 
 ### When an app does not appear
 
-Every declaration the registry refuses — a key naming no field, a field it does not recognise, an app
-with nowhere to launch — is logged, and is also kept and served to administrators at
-`/openmrs/ms/smartApps` alongside the list itself:
+A registration that cannot be launched is refused when it is made, so most mistakes are a `400` on the
+POST rather than a silent absence:
 
-```json
-{
-  "apps": [ ... ],
-  "problems": [
-    "Ignoring runtime property 'smart.app.vitals.launchcontxt': 'launchcontxt' is not a field of a SMART app registration"
-  ]
-}
-```
-
-`problems` is present only for a user holding *View Administration Functions*, since these messages
-name the property keys the deployment set. Note what that is worth in practice: the reference
-application's demo roles are broad, and `Organizational: Doctor` in the demo data holds that privilege
-along with some three hundred others, so treat this as keeping the report out of an ordinary response
-rather than as confidentiality. It exists because a misspelled variable is otherwise invisible: the app
-simply never appears, which looks exactly like a module that ignores the properties altogether.
+| response | what it means |
+|---|---|
+| `400` *A SMART app needs a name* / *needs a launch URL* | A required field was missing or blank. |
+| `400` *must be an http or https URL* | A launch URL a browser cannot be sent to. |
+| `400` *is already registered* | Another app holds that name. The message says so when the holder is retired, since a retired app is absent from the list you just read. |
+| `400` *launch context must be* | Something other than `patient` or `encounter`. |
+| `403` on the POST | The user lacks *Manage SMART Apps*. |
+| Registered, but the chart menu is empty | The frontend module has to be in the app shell, which is decided when the frontend image is built. |
 
 ### 4. Register the bearer scheme
 
@@ -291,8 +277,8 @@ should name your issuer, and its `capabilities` should list `launch-standalone`.
 | | |
 |---|---|
 | `GET <fhir base>/.well-known/smart-configuration` | The discovery document. Public. Also served directly at `/ms/smartConfig`. |
-| `GET /ms/smartApps` | The apps a clinician may launch, as JSON. Requires a session. Deliberately omits each app's launch URL and client id. |
-| `GET /ms/smartEhrLaunchServlet?appId=&patientId=[&visitId=]` | Starts an EHR launch. Requires a session. Redirects to the app's `launchUrl` with `iss` and `launch` appended. |
+| `/ws/rest/v1/smartapp` | The registered apps, as a REST resource: `GET` the list a chart menu reads, `POST` to register, `DELETE` to retire. `GET` needs *Get SMART Apps*; writing needs *Manage SMART Apps*. The default representation omits each app's launch URL and client id. |
+| `GET /ms/smartEhrLaunchServlet?appId={uuid}&patientId=[&visitId=]` | Starts an EHR launch, the app named by its uuid. Requires a session. Redirects to the app's `launchUrl` with `iss` and `launch` appended. |
 | `GET /ms/smartPatientSelection?token=` | Where the authorization server sends a launch that needs a patient chosen. Authenticates from the launch token, then redirects to the picker. |
 | `GET /ms/smartLaunchOptionSelected?token=&patientId=` | Records the clinician's choice, signs it, and hands back to the authorization server. |
 | `GET /ms/smartAccessConfirmation?token=` | The launch-access confirmation screen, ported from 1.x. |
@@ -374,7 +360,7 @@ Six responses, captured from a running stack. Each `302` means "go here next", a
 automatically. Values are redacted; the shape is real.
 
 ```http
-302 /openmrs/ms/smartEhrLaunchServlet?appId=test-app&patientId=c3ab5d9b-…
+302 /openmrs/ms/smartEhrLaunchServlet?appId=64b26639-…&patientId=c3ab5d9b-…
 302 http://localhost:3000/?iss=…%2Fws%2Ffhir2%2FR4&launch=<handle>
 302 …/openid-connect/auth?client_id=smartClient&response_type=code&aud=…&code_challenge_method=S256&launch=<handle>
 302 /openmrs/smartonfhir/smartAccessConfirmation?token=…%26app-token%3D%7BAPP_TOKEN%7D&launch=<handle>

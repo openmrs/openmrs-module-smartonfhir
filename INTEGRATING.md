@@ -141,33 +141,34 @@ end, from the interface: **Launch an app** in the patient banner's Actions menu 
 registered and starts a launch for the patient in the chart. The menu is hidden when nothing is
 registered.
 
-**Register your app in the registry as well as at Keycloak.** Keycloak knows your `client_id` and
-redirect URI; OpenMRS needs to know your *launch* URL. That goes in the runtime properties, as
-`smart.app.<id>.<field>`:
+**Register your app with OpenMRS as well as at Keycloak.** Keycloak knows your `client_id` and
+redirect URI; OpenMRS needs to know your *launch* URL. Ask the deployment to register it, which is one
+REST call and needs no restart:
 
-```properties
-smart.app.riskdashboard.name          = Patient Risk Dashboard
-smart.app.riskdashboard.description   = Shown in the chart when a clinician chooses an app
-smart.app.riskdashboard.clientid      = risk-dashboard
-smart.app.riskdashboard.launchurl     = https://risk.example.org/launch
-smart.app.riskdashboard.launchcontext = patient
+```bash
+curl -u <admin> -X POST {openmrs}/ws/rest/v1/smartapp \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Patient Risk Dashboard",
+       "description":"Shown in the chart when a clinician chooses an app",
+       "launchUrl":"https://risk.example.org/launch",
+       "clientId":"risk-dashboard",
+       "launchContext":"patient"}'
 ```
 
-The id in the key is how a launch names your app, and `launchurl` is where the browser is sent — the
-only field you cannot leave out. An app the deployment has not declared cannot be launched: the
-address is looked up rather than supplied by whoever starts the launch, because it used to be a
-request parameter and that made the servlet an open redirector — a single-use launch handle delivered
-to any host named in the URL.
+The response carries a `uuid`, and that is how a launch names your app. `launchUrl` is where the
+browser is sent and is the one field you cannot leave out. An app the deployment has not registered
+cannot be launched: the address is looked up rather than supplied by whoever starts the launch, because
+it used to be a request parameter and that made the servlet an open redirector — a single-use launch
+handle delivered to any host named in the URL.
 
-Ask the deployment to set these however it sets its other runtime properties; on the reference
-application image that is `OMRS_EXTRA_SMART_APP_RISKDASHBOARD_LAUNCHURL` and no file at all. A
-restart applies them, and `{openmrs}/ms/smartApps` shows an administrator what was registered and
-what was refused, which is the first place to look if your app is missing from the menu.
+`GET {openmrs}/ws/rest/v1/smartapp` shows what is registered, which is the first place to look if your
+app is missing from the menu. Registering needs the *Manage SMART Apps* privilege, so this is something
+the deployment does rather than you.
 
 The launch is then started by sending the clinician's browser to:
 
 ```
-{openmrs}/ms/smartEhrLaunchServlet?appId=risk-dashboard&patientId={patient uuid}
+{openmrs}/ms/smartEhrLaunchServlet?appId={your app's uuid}&patientId={patient uuid}
 ```
 
 which redirects to your launch URL with the two parameters the specification requires:
@@ -185,9 +186,9 @@ No password is asked for: the clinician's OpenMRS session is what authenticates 
 
 **Building your own launcher.** The Actions-menu entry is a frontend module
 ([openmrs-esm-smart-app-launch-app](https://github.com/mherman22/openmrs-esm-smart-app-launch-app)) rather
-than part of this one, so you can replace it. `GET {openmrs}/ms/smartApps` lists the registered apps —
-`id`, `name`, `description`, `launchContext`, and deliberately not launch URLs or client ids, which a
-chart screen has no use for. If you are writing an O3 frontend module to do this, you are building the
+than part of this one, so you can replace it. `GET {openmrs}/ws/rest/v1/smartapp` lists the registered
+apps — `uuid`, `display`, `description`, `launchContext`, and deliberately not launch URLs or client
+ids, which a chart screen has no use for. If you are writing an O3 frontend module to do this, you are building the
 *launcher* rather than a SMART app; see the first row of
 [the table above](#which-integration-do-you-actually-need).
 
