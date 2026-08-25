@@ -39,13 +39,8 @@ import org.openmrs.module.smartonfhir.util.SmartOAuth2ConfigHolder;
 import org.openmrs.util.OpenmrsUtil;
 
 /**
- * The discovery document is a contract. An app reads it and believes it, so what matters here is
- * the JSON a client actually receives rather than the bean behind it.
- * <p>
- * Introspection was advertised for a while by deriving Keycloak's conventional path, which meant
- * every app could discover an endpoint that answers a public client {@code 403
- * {"error":"invalid_request","error_description":"Client not allowed."}}. That is the overclaim
- * these tests hold shut: stated in configuration, advertised; not stated, absent.
+ * The discovery document is a contract, so these assert the JSON a client receives. An endpoint
+ * stated in configuration is advertised; one that is not stated stays absent.
  */
 @ExtendWith(MockitoExtension.class)
 public class SmartConfigServletTest {
@@ -81,8 +76,7 @@ public class SmartConfigServletTest {
 		Map<String, Object> document = serve("");
 
 		assertThat(document, not(hasKey("introspection_endpoint")));
-		// The endpoints this server does stand behind are still there, so the assertion above is about
-		// introspection rather than about a document that failed to build.
+		// A stated endpoint is still there, so the assertion above is not about a document that failed.
 		assertThat((String) document.get("token_endpoint"),
 		    is("https://kc.example.org/realms/openmrs/protocol/openid-connect/token"));
 	}
@@ -90,16 +84,15 @@ public class SmartConfigServletTest {
 	@Test
 	public void doGet_shouldAdvertiseIntrospectionWhenTheDeploymentStatesIt() throws Exception {
 		Map<String, Object> document = serve(
-		    ",\"introspection-endpoint\":\"https://kc.example.org/realms/openmrs/protocol/openid-connect/token/introspect\"");
+		    ",\"introspection_endpoint\":\"https://kc.example.org/realms/openmrs/protocol/openid-connect/token/introspect\"");
 
 		assertThat((String) document.get("introspection_endpoint"),
 		    is("https://kc.example.org/realms/openmrs/protocol/openid-connect/token/introspect"));
 	}
 
 	/**
-	 * Serves the discovery document from a configuration holding nothing but the required fields plus
-	 * whatever {@code extraConfig} adds. {@code advertised-jwks-uri} is stated so that building the
-	 * document never reaches key discovery, which would otherwise put a network call in a unit test.
+	 * Serves the document from the required fields plus whatever {@code extraConfig} adds, with the
+	 * advertised JWKS URI stated so building it never reaches the network.
 	 */
 	private Map<String, Object> serve(String extraConfig) throws Exception {
 		File config = appData.resolve("config").toFile();
@@ -107,7 +100,7 @@ public class SmartConfigServletTest {
 		Files.write(config.toPath().resolve(SmartOAuth2ConfigHolder.CONFIG_FILE_NAME),
 		    ("{\"issuer\":\"https://kc.example.org/realms/openmrs\","
 		            + "\"audience\":\"https://openmrs.example.org/openmrs/ws/fhir2/R4\","
-		            + "\"advertised-jwks-uri\":\"https://kc.example.org/realms/openmrs/protocol/openid-connect/certs\""
+		            + "\"advertised_jwks_uri\":\"https://kc.example.org/realms/openmrs/protocol/openid-connect/certs\""
 		            + extraConfig + "}").getBytes(StandardCharsets.UTF_8));
 		SmartOAuth2ConfigHolder.reset();
 

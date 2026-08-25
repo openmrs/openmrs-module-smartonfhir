@@ -18,10 +18,7 @@ import java.io.IOException;
 
 import org.springframework.web.filter.OncePerRequestFilter;
 
-/*
- * Custom CORS filter
- * To use this declare filter mapping in config.xml
- */
+/** Custom CORS filter; declare its mapping in config.xml to use it. */
 public class CORSFilter extends OncePerRequestFilter {
 
 	@Override

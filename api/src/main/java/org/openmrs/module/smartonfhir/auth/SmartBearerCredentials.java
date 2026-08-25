@@ -9,33 +9,18 @@
  */
 package org.openmrs.module.smartonfhir.auth;
 
-import java.util.Collections;
 import java.util.Set;
 
 import org.openmrs.module.authentication.AuthenticationCredentials;
 import org.openmrs.module.smartonfhir.util.SmartAccessTokenVerifier.SmartAccessToken;
 
 /**
- * The result of an already-verified SMART access token, in the form the authentication module
- * expects.
- * <p>
- * Constructed only from a {@link SmartAccessToken}, which exists only if
- * {@link org.openmrs.module.smartonfhir.util.SmartAccessTokenVerifier} accepted the token. There is
- * deliberately no constructor taking a bare username: that would make it possible to mint
- * credentials for any user without presenting a token.
- * <p>
- * The raw token is not retained. Nothing downstream needs it, and holding it would put a bearer
- * credential into the HTTP session the authentication module stores these in.
+ * An already-verified SMART access token, in the form the authentication module expects. Built only
+ * from a {@link SmartAccessToken}, so no credential exists without a token behind it.
  */
 public class SmartBearerCredentials implements AuthenticationCredentials {
 
 	private static final long serialVersionUID = 1L;
-
-	/**
-	 * The scheme these credentials are handled by. Must match the scheme id configured in
-	 * authentication.scheme, so that whichever route produced the credentials reaches the same handler.
-	 */
-	public static final String SCHEME_ID = "smartBearer";
 
 	private final String schemeId;
 
@@ -49,10 +34,10 @@ public class SmartBearerCredentials implements AuthenticationCredentials {
 
 	public SmartBearerCredentials(String schemeId, SmartAccessToken token) {
 		this.schemeId = schemeId;
-		this.username = token.getUsername();
-		this.patient = token.getPatient();
-		this.encounter = token.getEncounter();
-		this.scopes = Collections.unmodifiableSet(token.getScopes());
+		this.username = token.username();
+		this.patient = token.patient();
+		this.encounter = token.encounter();
+		this.scopes = token.scopes();
 	}
 
 	@Override

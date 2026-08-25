@@ -40,18 +40,13 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 		String patientId = getParameter(req, "patientId");
 		String visitId = getParameter(req, "visitId");
 
-		// Before anything is decoded: this used to run URLDecoder on the parameter twenty-five lines
-		// above the null check, so a request without one answered 500 instead of 400.
+		// Checked before anything is decoded, so a missing parameter is a 400 rather than a 500.
 		if (token == null || (patientId == null && visitId == null)) {
 			res.sendError(HttpServletResponse.SC_BAD_REQUEST, "A token and a patient or visit are required");
 			return;
 		}
 
-		// This endpoint signs launch context with the secret shared with the authorization server, and
-		// hands the result to whatever address the token names. Unauthenticated, that is an oracle: any
-		// caller could obtain a token asserting any patient, delivered to a URL of their choosing. The
-		// bypass filter in front of this never *requires* authentication -- a request it cannot read a
-		// launch token from simply passes through -- so the check has to be here.
+		// Checked here, because the bypass filter in front never requires authentication.
 		if (!Context.isAuthenticated()) {
 			log.error("Refused to sign launch context for an unauthenticated request");
 			res.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
@@ -60,8 +55,7 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 
 		final String decodedUrl = SmartLaunchTargets.decodeLaunchTarget(token);
 
-		// The signed token goes to this address, so it must be the authorization server's own. Without
-		// this, the address came from the request and the token could be delivered anywhere.
+		// The signed token goes to this address, so it must be the authorization server's own.
 		if (!isAuthorizationServerAddress(decodedUrl)) {
 			log.error("Refused to send launch context to an address that is not the authorization server");
 			res.sendError(HttpServletResponse.SC_BAD_REQUEST, "The launch target is not the authorization server");
@@ -76,12 +70,7 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 		}
 
 		if (launchTypeString.contains("encounter") && visitId == null) {
-			// This is the standalone path -- the patient picker sends the clinician here -- so a visit has
-			// to be chosen, and the screen that chose one was a RefApp 2.x page removed with the rest of
-			// that UI: it could not have rendered in a distribution without uiframework. Refused plainly
-			// rather than redirected to a page that no longer exists, until a replacement exists. An EHR
-			// launch never reaches this: the EHR names the visit, so context-ehr-encounter is claimed
-			// while context-standalone-encounter is not.
+			// Only a standalone launch reaches this, and its visit picker went with the RefApp 2.x UI.
 			log.error("An encounter launch was requested, but there is no visit-selection screen to send the user to");
 			res.sendError(HttpServletResponse.SC_NOT_IMPLEMENTED, "Encounter launch is not supported");
 			return;
@@ -111,16 +100,8 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 	}
 
 	/**
-	 * Ends the OpenMRS session the launch token created, now the hand-off is done.
-	 * <p>
-	 * A standalone launch has to sign the clinician in so they can search for a patient, and that
-	 * session used to outlive the launch: the browser was left holding a fully privileged session
-	 * nobody had asked for and no visible logout would obviously end. On a shared workstation that is
-	 * the next person's session.
-	 * <p>
-	 * Only a session the bypass filter created is ended, identified by the marker it leaves. A
-	 * clinician who was already signed in to OpenMRS keeps their session — that one is theirs, it
-	 * predates the launch, and ending it would log them out of the application they are working in.
+	 * Ends the OpenMRS session the launch token created, now the hand-off is done. Only a session the
+	 * bypass filter made is ended; a clinician who was already signed in keeps theirs.
 	 */
 	private void endSessionIfItExistedOnlyForThisLaunch(HttpServletRequest req) {
 		HttpSession session = req.getSession(false);
@@ -129,19 +110,14 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 			return;
 		}
 
-		// The authentication is ended, but the session container is left alone. Invalidating it leaves the
-		// browser holding a cookie for a session that no longer exists, and OpenMRS answers 401 with an
-		// HTML error page to the next request that presents it — including the session endpoint the
-		// frontend polls, which expects 200 with authenticated false.
+		// The container is left alone: a cookie for a dead session breaks the frontend's session poll.
 		Context.logout();
 		session.removeAttribute(AuthenticationByPassFilter.SMART_AUTH_BYPASS);
 	}
 
 	/**
-	 * Whether a launch target belongs to the configured authorization server.
-	 * <p>
-	 * Compared on scheme, host and port -- the issuer's origin -- rather than as a string prefix, so a
-	 * host that merely starts with the issuer's cannot pass.
+	 * Whether a launch target belongs to the configured authorization server, compared on origin so a
+	 * host merely starting with the issuer's cannot pass.
 	 */
 	private boolean isAuthorizationServerAddress(String target) {
 		final SmartOAuth2Config config = SmartOAuth2ConfigHolder.getConfig();
@@ -150,9 +126,7 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 			return false;
 		}
 
-		// UriComponentsBuilder rather than java.net.URI: the target carries the authorization server's
-		// own {APP_TOKEN} placeholder, and braces are illegal in a URI -- constructing one threw, which
-		// this method read as "not the authorization server" and refused every real launch.
+		// UriComponentsBuilder rather than java.net.URI, which rejects the {APP_TOKEN} placeholder.
 		try {
 			UriComponents candidate = UriComponentsBuilder.fromUriString(target).build();
 			UriComponents issuer = UriComponentsBuilder.fromUriString(config.getIssuer()).build();
@@ -187,11 +161,8 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 	}
 
 	/**
-	 * Which launch context the app asked for, read from the authorization server's action token.
-	 * <p>
-	 * The signature is not checked: the token is signed with the authorization server's key, which this
-	 * module does not hold. Nothing security-relevant rests on the answer, which only decides whether
-	 * the user is additionally asked to pick a visit.
+	 * Which launch context the app asked for. The action token's signature is not checked, and nothing
+	 * security-relevant rests on the answer: it only decides whether a visit is asked for.
 	 */
 	private String getLaunchTypeString(String key) {
 		JWTClaimsSet claims = SmartLaunchTokens.readUnverifiedClaims(key);

@@ -26,26 +26,18 @@ import org.openmrs.module.authentication.web.WebAuthenticationScheme;
 public class SmartBearerTokenAuthenticationSchemeTest {
 
 	/**
-	 * The regression this guards is expensive and quiet. The authentication module's filter is mapped
-	 * to every URL, but collects credentials, redirects to a login page and consults
-	 * {@code authentication.whiteList} only when the active scheme is a
-	 * {@code WebAuthenticationScheme}; for anything else it passes the request down the chain. This
-	 * scheme used to extend that base and return nulls, which does not mean "carry on": the filter fell
-	 * through to {@code sendRedirect(null)} and the OpenMRS root became a redirect loop, so every
-	 * deployment had to set {@code authentication.whiteList=/*} and switch the module's gatekeeping off
-	 * wholesale. Re-adding the base class would bring that back without failing anything else.
+	 * Extending {@code WebAuthenticationScheme} makes the module's filter redirect to a null URL, which
+	 * every deployment then had to work around with {@code authentication.whiteList=/*}.
 	 */
 	@Test
 	@DisplayName("is not an interactive scheme, so the module's filter leaves requests alone")
 	public void shouldNotBeAWebAuthenticationScheme() {
 		SmartBearerTokenAuthenticationScheme scheme = new SmartBearerTokenAuthenticationScheme();
 
-		// Asked of the class rather than the instance, so this still compiles -- and fails -- if the
-		// base class is put back.
+		// Asked of the class, so this still compiles and fails if the base class is put back.
 		assertFalse(WebAuthenticationScheme.class.isAssignableFrom(SmartBearerTokenAuthenticationScheme.class),
 		    "extending WebAuthenticationScheme makes the module's filter gatekeep every URL again");
-		// Still configurable, which is how the authentication module passes it a scheme id and its
-		// config.* properties after instantiating it from authentication.scheme.<id>.type.
+		// Still configurable, which is how the module passes it a scheme id and its config.* properties.
 		assertTrue(scheme instanceof ConfigurableAuthenticationScheme);
 	}
 

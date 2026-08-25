@@ -20,10 +20,7 @@ package org.openmrs.module.smartonfhir.auth;
 
 import org.openmrs.api.context.Credentials;
 
-/**
- * Credentials consisting of the token received from the OAuth 2 provider. In practise this token is
- * made of the user info sent over from the OAuth2 provider.
- */
+/** Credentials naming the user the OAuth 2 provider sent over. */
 public class SmartTokenCredentials implements Credentials {
 
 	final public static String SCHEME_NAME = "SMART_AUTH_SCHEME";

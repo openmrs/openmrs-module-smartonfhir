@@ -14,89 +14,70 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 /**
- * How this module reaches its authorization server, read from {@code {application data
- * directory}/config/smart-oauth2.json}.
- * <p>
- * This replaces the Keycloak adapter's {@code keycloak.json}. Keycloak's Java adapters were removed
- * after Keycloak 25 and the adapter configuration format went with them, so the settings this
- * module needs are now stated directly and in provider-neutral terms.
- * <p>
- * Only {@code issuer} and {@code audience} are required. The endpoints are optional: they exist so
- * a deployment can override what would otherwise be read from the issuer's OpenID Connect discovery
- * document.
+ * How this module reaches its authorization server. Only {@code issuer} and {@code audience} are
+ * required; everything else defaults, and the endpoints come from OpenID Connect discovery.
  */
 @Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class SmartOAuth2Config {
 
-	/**
-	 * The authorization server's issuer identifier, for example
-	 * {@code https://keycloak.example.org/realms/openmrs}. Access tokens whose {@code iss} does not
-	 * match this are rejected.
-	 */
+	/** The authorization server's issuer identifier; a token whose {@code iss} differs is rejected. */
 	@JsonProperty(value = "issuer", required = true)
 	private String issuer;
 
-	/**
-	 * This FHIR server's base URL, as an app names it in the SMART {@code aud} parameter, for example
-	 * {@code https://openmrs.example.org/openmrs/ws/fhir2/R4}. Access tokens must carry it in
-	 * {@code aud}; SMART App Launch 2.x requires the check, and without it a token minted for another
-	 * FHIR server can be replayed here.
-	 */
+	/** This FHIR server's base URL, which a token must name in {@code aud} to be accepted here. */
 	@JsonProperty(value = "audience", required = true)
 	private String audience;
 
 	/**
-	 * Where the token signing keys are published. Defaults to the {@code jwks_uri} advertised by the
-	 * issuer's discovery document.
+	 * Where token signing keys are fetched from. Defaults to the issuer's advertised {@code jwks_uri}.
 	 */
-	@JsonProperty("jwks-uri")
+	@JsonProperty("jwks_uri")
 	private String jwksUri;
 
-	/**
-	 * The JWKS location to publish in the SMART discovery document, when it differs from the one this
-	 * module fetches keys from.
-	 * <p>
-	 * They differ whenever the authorization server is reachable by two names. This module fetches keys
-	 * server to server and may use an internal address; an app reads the discovery document from
-	 * outside and must be given one it can resolve. Publishing the internal address produces a
-	 * discovery document that looks complete and is unusable.
-	 */
-	@JsonProperty("advertised-jwks-uri")
+	/** The JWKS location to publish, for when apps reach the authorization server by another name. */
+	@JsonProperty("advertised_jwks_uri")
 	private String advertisedJwksUri;
 
-	@JsonProperty("authorization-endpoint")
+	@JsonProperty("authorization_endpoint")
 	private String authorizationEndpoint;
 
-	@JsonProperty("token-endpoint")
+	@JsonProperty("token_endpoint")
 	private String tokenEndpoint;
 
-	@JsonProperty("introspection-endpoint")
+	@JsonProperty("introspection_endpoint")
 	private String introspectionEndpoint;
 
-	@JsonProperty("revocation-endpoint")
+	@JsonProperty("revocation_endpoint")
 	private String revocationEndpoint;
 
-	@JsonProperty("registration-endpoint")
+	@JsonProperty("registration_endpoint")
 	private String registrationEndpoint;
 
-	@JsonProperty("end-session-endpoint")
+	@JsonProperty("end_session_endpoint")
 	private String endSessionEndpoint;
 
-	/**
-	 * The claim naming the OpenMRS user. Defaults to {@code preferred_username}, which is what
-	 * Keycloak's profile scope emits.
-	 */
-	@JsonProperty("username-claim")
+	/** The claim naming the OpenMRS user; Keycloak's profile scope emits the default. */
+	@JsonProperty("username_claim")
 	private String usernameClaim = "preferred_username";
 
-	/**
-	 * Seconds of clock skew tolerated when checking {@code exp} and {@code nbf}.
-	 */
-	@JsonProperty("allowed-clock-skew-seconds")
-	private int allowedClockSkewSeconds = 30;
+	/** Seconds of clock skew tolerated when checking {@code exp} and {@code nbf}. */
+	@JsonProperty("allowed_clock_skew_seconds")
+	private int allowedClockSkewSeconds = 10;
+
+	/** Signature algorithms accepted on access tokens, space separated. Asymmetric only. */
+	@JsonProperty("signature_algorithms")
+	private String signatureAlgorithms = "RS256 RS384 RS512 ES256 ES384 ES512 PS256 PS384 PS512";
+
+	/** Seconds to wait on the issuer's discovery document before giving up. */
+	@JsonProperty("discovery_timeout_seconds")
+	private int discoveryTimeoutSeconds = 10;
+
+	/** Seconds to cache the authorization server's signing keys. Zero keeps the nimbus default. */
+	@JsonProperty("jwks_cache_seconds")
+	private int jwksCacheSeconds = 0;
 
 	public boolean isUsable() {
-		return issuer != null && !issuer.trim().isEmpty() && audience != null && !audience.trim().isEmpty();
+		return issuer != null && !issuer.isBlank() && audience != null && !audience.isBlank();
 	}
 }

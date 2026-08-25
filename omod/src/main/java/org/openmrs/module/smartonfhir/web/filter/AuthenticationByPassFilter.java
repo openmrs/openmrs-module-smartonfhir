@@ -93,11 +93,7 @@ public class AuthenticationByPassFilter implements Filter {
 		if (!isValidRequest) {
 			HttpSession session = request.getSession(false);
 			if (session != null && session.getAttribute(SMART_AUTH_BYPASS) != null) {
-				// Log out and drop the marker; do not invalidate. Invalidating leaves the
-				// browser holding a cookie for a session that no longer exists, and the only
-				// reason it did not bite here was the getSession() that used to follow it
-				// minting a replacement. SmartLaunchOptionSelected ends the same session the
-				// same way.
+				// Not invalidated, which would leave a cookie for a session that no longer exists.
 				Context.logout();
 				session.removeAttribute(SMART_AUTH_BYPASS);
 			}
@@ -109,26 +105,17 @@ public class AuthenticationByPassFilter implements Filter {
 		if (!Context.isAuthenticated()) {
 			final String tokenParam = request.getParameter("token");
 
-			// Read exactly as SmartLaunchOptionSelected reads it. This used to search the
-			// container-decoded parameter for "key=" while the servlet decoded once more before parsing,
-			// so a doubly-encoded key was invisible here and visible there: this filter attempted no
-			// authentication and the servlet proceeded anyway. It also matched any parameter merely
-			// ending in "key", so ?monkey=x&key=real yielded x.
+			// Read exactly as SmartLaunchOptionSelected reads it, so the two cannot disagree.
 			final String key = SmartLaunchTargets.parameterFrom(SmartLaunchTargets.decodeLaunchTarget(tokenParam), "key");
 
 			if (tokenParam != null) {
 				if (key == null) {
-					// Left silently to the chain before, so an operator debugging a launch that dies at the
-					// picker had nothing to look at. Still fail-closed: the servlets check
-					// Context.isAuthenticated() themselves.
+					// Still fail-closed, since the servlets check Context.isAuthenticated() themselves.
 					log.warn("A request to a launch URL carried a token with no readable key; not authenticating it");
 				} else {
 					{
 
-						// The outer token is the authorization server's action token, signed with a key
-						// this module does not hold, so it is read but not trusted. It carries a nested
-						// token that is signed with the shared secret; that one is verified below, and it
-						// is what establishes who the user is.
+						// Read but not trusted; the nested token verified below names the user.
 						JWTClaimsSet outerClaims = SmartLaunchTokens.readUnverifiedClaims(key);
 
 						if (outerClaims == null) {
@@ -154,18 +141,8 @@ public class AuthenticationByPassFilter implements Filter {
 
 						final String username = userClaims.getSubject();
 
-						if (username == null || username.trim().isEmpty()) {
-							// Two very different situations reach here, and the message has to tell them apart or
-							// it is undiagnosable. An EHR launch mints this token deliberately without a subject --
-							// Keycloak does not know who the clinician is, which is the whole reason it is asking
-							// OpenMRS -- so a 401 here is the flow working: the authorization server treats it as
-							// attempted and falls through to a login form. A standalone launch, by contrast, sets
-							// the subject from the authenticated Keycloak user, so a blank one there means
-							// something upstream lost the user and is worth investigating.
-							//
-							// Everything logged below is what was needed and missing the one time this was seen in
-							// the wild: which request, which token type, whether the subject was absent or blank,
-							// and when the token was issued and expires.
+						if (username == null || username.isBlank()) {
+							// Expected on an EHR launch, but a sign of trouble on a standalone one.
 							log.warn(
 							    "A launch token carrying no user reached {} -- inner token type '{}', subject {}, issued {}, expires {}, issuer '{}'. "
 							            + "For an EHR launch this is expected and the launch continues at the login form; for a standalone launch it is not.",
@@ -178,11 +155,7 @@ public class AuthenticationByPassFilter implements Filter {
 						try {
 							Context.authenticate(new SmartTokenCredentials(username));
 
-							// Marked immediately, before anything that can throw. The teardown below keys off
-							// this attribute, and setting it after the location lookup meant an
-							// APIAuthenticationException from getDefaultLocation -- a sibling of
-							// ContextAuthenticationException, so not caught here before -- left the session
-							// authenticated and unmarked, which is to say authenticated forever.
+							// Marked before anything that can throw, since the teardown below keys off it.
 							request.getSession().setAttribute(SMART_AUTH_BYPASS, true);
 
 							Context.getUserContext().setLocation(Context.getLocationService().getDefaultLocation());

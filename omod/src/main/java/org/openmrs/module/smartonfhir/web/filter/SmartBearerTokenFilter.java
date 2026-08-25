@@ -28,27 +28,14 @@ import org.openmrs.module.smartonfhir.util.SmartAccessTokenVerifier.SmartAccessT
 import org.openmrs.module.smartonfhir.util.SmartAccessTokenVerifierHolder;
 
 /**
- * Authenticates FHIR requests that carry a SMART access token.
- * <p>
- * <strong>Why a filter and not only a scheme.</strong> The authentication module's filter is the
- * natural place for this, but it only invokes a scheme's {@code getCredentials} under conditions
- * that did not hold for FHIR requests in RefApp 3.7.1, so bearer tokens were never examined. This
- * filter does the part that was not happening — read the header, verify the token — and then hands
- * the resulting credentials to {@link Context#authenticate}, which routes them through the module's
- * delegating scheme to {@code SmartBearerTokenAuthenticationScheme}. Identity mapping therefore
- * still lives in one place.
- * <p>
- * <strong>Scoped to the FHIR paths.</strong> Deliberately not {@code /*}. The filter it replaces
- * was mapped to every request in the webapp, so its logic ran on every O3 REST call. Nothing
- * outside the FHIR API accepts SMART tokens, so nothing outside it needs this.
- * <p>
- * <strong>Authentication does not outlive the request.</strong> {@link Context#authenticate}
- * attaches the user to the HTTP session, which would let a client replay the resulting cookie
- * without presenting a token again — turning a bearer credential into an ambient one. The session
- * is therefore discarded once the request completes, so each FHIR call stands on its own token.
+ * Authenticates FHIR requests carrying a SMART access token, routing the credentials through
+ * {@link Context#authenticate}. The session it opens is discarded when the request completes.
  */
 @Slf4j
 public class SmartBearerTokenFilter implements Filter {
+
+	/** Must match the scheme id this module is registered under in {@code authentication.scheme}. */
+	private static final String SCHEME_ID = "smartBearer";
 
 	public static final String AUTHORIZATION_HEADER = "Authorization";
 
@@ -77,17 +64,13 @@ public class SmartBearerTokenFilter implements Filter {
 		final String bearerToken = bearerTokenFrom(request);
 
 		if (bearerToken == null) {
-			// No SMART token offered. Basic auth and session cookies are still handled by the rest
-			// of the chain exactly as before.
+			// No SMART token offered, so basic auth and session cookies are left to the rest of the chain.
 			chain.doFilter(req, res);
 			return;
 		}
 
 		if (Context.isAuthenticated()) {
-			// Already authenticated by something earlier in the chain -- a session cookie, or basic auth --
-			// so that identity is left alone. The token is not verified and no launch context is set, which
-			// means an app believing itself confined to a granted patient is in fact running with the cookie
-			// user's full privileges. Logged, because nothing else would say so.
+			// An earlier identity wins, so the app runs with that user's privileges and no launch context.
 			log.warn("A SMART access token was presented on an already-authenticated request; it was not used, "
 			        + "and no launch context is available to this request");
 			chain.doFilter(req, res);
@@ -105,22 +88,17 @@ public class SmartBearerTokenFilter implements Filter {
 		final SmartAccessToken token = verifier.verify(bearerToken);
 
 		if (token == null) {
-			// The verifier logged the reason. The response deliberately does not say which check
-			// failed, so a caller cannot use the error to probe.
+			// The verifier logged the reason; the response withholds it so a caller cannot probe.
 			unauthorized(response, "invalid_token");
 			return;
 		}
 
-		// Any exception, not only ContextAuthenticationException. UserContext.authenticate sets the user
-		// before it sets location and locale, and those two calls sit outside its own try block: an
-		// APIException from either -- APIAuthenticationException is a sibling, not a subclass -- escaped
-		// this catch with the context already logged in, leaving a session minted from a bearer token and
-		// replayable without one.
+		// Any exception: authenticate() can leave the context logged in while a later one escapes.
 		try {
-			Context.authenticate(new SmartBearerCredentials(SmartBearerCredentials.SCHEME_ID, token));
+			Context.authenticate(new SmartBearerCredentials(SCHEME_ID, token));
 		}
 		catch (Exception e) {
-			log.warn("A valid SMART access token named '{}', who could not be authenticated in OpenMRS", token.getUsername(),
+			log.warn("A valid SMART access token named '{}', who could not be authenticated in OpenMRS", token.username(),
 			    e);
 			endBearerSession();
 			unauthorized(response, "invalid_token");
@@ -128,16 +106,14 @@ public class SmartBearerTokenFilter implements Filter {
 		}
 
 		try {
-			request.setAttribute(ATTRIBUTE_PATIENT, token.getPatient());
-			request.setAttribute(ATTRIBUTE_ENCOUNTER, token.getEncounter());
-			request.setAttribute(ATTRIBUTE_SCOPES, token.getScopes());
+			request.setAttribute(ATTRIBUTE_PATIENT, token.patient());
+			request.setAttribute(ATTRIBUTE_ENCOUNTER, token.encounter());
+			request.setAttribute(ATTRIBUTE_SCOPES, token.scopes());
 
 			chain.doFilter(req, res);
 		}
 		finally {
-			// Keeps bearer authentication per-request: see the class comment. Asks the context what it
-			// actually holds, rather than trusting a local flag that was set after authenticate() returned
-			// and so was false on exactly the paths where a session had already been established.
+			// Asks the context what it holds rather than trusting a flag set after authenticate() returned.
 			try {
 				endBearerSession();
 			}
@@ -147,11 +123,6 @@ public class SmartBearerTokenFilter implements Filter {
 		}
 	}
 
-	/**
-	 * A bearer challenge, as OAuth 2 requires. The previous implementation answered a bare 401 with no
-	 * {@code WWW-Authenticate}, leaving a client unable to tell that refreshing its token was the
-	 * remedy.
-	 */
 	/** Ends a session this filter created, if the context in fact holds one. */
 	private void endBearerSession() {
 		if (Context.isAuthenticated()) {
@@ -159,6 +130,9 @@ public class SmartBearerTokenFilter implements Filter {
 		}
 	}
 
+	/**
+	 * A bearer challenge, as OAuth 2 requires, so a client can tell that its token needs refreshing.
+	 */
 	private void unauthorized(HttpServletResponse response, String error) throws IOException {
 		if (response.isCommitted()) {
 			return;
