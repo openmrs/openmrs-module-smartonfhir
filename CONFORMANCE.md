@@ -13,9 +13,9 @@ implement fails in a way that looks like the app's fault.
 
 | Spec requirement | Status | Notes |
 |---|---|---|
-| Register app (redirect URIs, launch URL) | **Manual** | No dynamic client registration. Redirect URIs at Keycloak; launch URLs in the module's `smart.app.<id>.launchurl` runtime properties. |
+| Register app (redirect URIs, launch URL) | **Manual** | No dynamic client registration. Redirect URIs at Keycloak; launch URLs registered with this module at `/ws/rest/v1/smartapp`. |
 | Standalone launch | **Yes** | Walked end to end in a browser, including patient selection. |
-| EHR launch | **Yes** | Walked in a browser from a patient chart: "Launch an app" in the banner Actions menu, the app is notified with `iss` and `launch`, the handle is redeemed against the clinician's OpenMRS session with no password prompt, and the token response carries the patient. Apps are declared in the runtime properties, so an unregistered app cannot be launched and the launch address cannot be supplied by the caller. |
+| EHR launch | **Yes** | Walked in a browser from a patient chart: "Launch an app" in the banner Actions menu, the app is notified with `iss` and `launch`, the handle is redeemed against the clinician's OpenMRS session with no password prompt, and the token response carries the patient. Apps are registered with this module, so an unregistered app cannot be launched and the launch address cannot be supplied by the caller. |
 | `.well-known/smart-configuration` | **Yes** | All SMART 2.x required fields present. |
 | Authorization code flow | **Yes** | |
 | PKCE, `S256` required, `plain` refused | **Yes** | `code_challenge_methods_supported` is `["S256"]` only. |
