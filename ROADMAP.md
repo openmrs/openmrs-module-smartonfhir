@@ -36,12 +36,15 @@ ignored — a smuggled one does not change where the browser goes.
 
 ### 3. ~~No app registry~~ — done
 
-Apps are declared in the runtime properties as `smart.app.<id>.<field>`, read by `SmartAppRegistry`,
-and listed for the frontend by `SmartAppsServlet` — without launch URLs or client ids, which a chart
-screen has no use for. An unregistered app answers 404, and nothing declared means nothing is
-launchable rather than a fallback to a caller-supplied address. Integrating an app therefore costs a
-deployment a few variables and no file mount, and `SmartAppRegistry.getProblems()` says what was
-refused, so a misspelled variable is visible without reading the server log.
+Apps are rows in `smartonfhir_app`, behind `SmartAppService` and served as a REST resource at
+`/ws/rest/v1/smartapp` — the list a chart menu reads carries no launch URL or client id, which it has
+no use for. An unregistered app answers 404, and an empty registry means nothing is launchable rather
+than a fallback to a caller-supplied address. Registering one is a REST call needing no restart, and a
+registration that could not be launched is refused with 400 rather than stored, so a mistake is visible
+at the point it is made instead of as an app missing from a menu.
+
+There is no administrative screen yet: registering an app means calling the API. That is the remaining
+gap here.
 
 Not done, and worth doing if apps ever need managing at runtime: there is no UI for editing the
 registry, no per-user or per-role restriction on which apps a given clinician may launch, and a change
