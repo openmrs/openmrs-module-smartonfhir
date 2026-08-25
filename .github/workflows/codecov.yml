@@ -1,0 +1,19 @@
+name: Upload Coverage
+
+# Separate from the build because it needs id-token: write to upload, and a workflow triggered
+# by a pull request from a fork cannot be given that. workflow_run runs in the base repository's
+# context after the build finishes, and takes the commit and branch from the trusted event
+# payload rather than from the artifact the fork produced.
+on:
+  workflow_run:
+    workflows: [ "Build with Maven" ]   # must match the build workflow's name:
+    types: [ completed ]
+
+jobs:
+  upload:
+    permissions:
+      contents: read
+      actions: read
+      id-token: write
+      pull-requests: read
+    uses: openmrs/openmrs-contrib-gha-workflows/.github/workflows/upload-coverage.yml@main
