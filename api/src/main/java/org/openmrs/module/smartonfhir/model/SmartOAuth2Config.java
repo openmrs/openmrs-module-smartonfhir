@@ -12,9 +12,8 @@ package org.openmrs.module.smartonfhir.model;
 import lombok.Data;
 
 /**
- * How this module reaches its authorization server, read from the {@code smart.oauth2.*} runtime
- * properties. Only {@code issuer} and {@code audience} are required; the endpoints otherwise come
- * from OpenID Connect discovery.
+ * How this module reaches its authorization server. Only {@code issuer} and {@code audience} are
+ * required; the endpoints otherwise come from OpenID Connect discovery.
  */
 @Data
 public class SmartOAuth2Config {
@@ -25,7 +24,9 @@ public class SmartOAuth2Config {
 	/** This FHIR server's base URL, which a token must name in {@code aud} to be accepted here. */
 	private String audience;
 
-	/** Where token signing keys are fetched from. Defaults to the issuer's advertised {@code jwks_uri}. */
+	/**
+	 * Where token signing keys are fetched from. Defaults to the issuer's advertised {@code jwks_uri}.
+	 */
 	private String jwksUri;
 
 	/** The JWKS location to publish, for when apps reach the authorization server by another name. */
