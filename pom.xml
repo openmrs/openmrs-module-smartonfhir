@@ -195,6 +195,27 @@
 			</dependency>
 			<dependency>
 				<groupId>org.openmrs.module</groupId>
+				<artifactId>webservices.rest-omod-common</artifactId>
+				<version>${webservicesRestVersion}</version>
+				<scope>provided</scope>
+			</dependency>
+			<!-- RestControllerTestUtils, so a REST resource is tested the way that module tests its own -->
+			<dependency>
+				<groupId>org.openmrs.module</groupId>
+				<artifactId>webservices.rest-omod</artifactId>
+				<version>${webservicesRestVersion}</version>
+				<classifier>tests</classifier>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.openmrs.test</groupId>
+				<artifactId>openmrs-test</artifactId>
+				<version>${openmrsPlatformVersion}</version>
+				<type>pom</type>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.openmrs.module</groupId>
 				<artifactId>authentication-api</artifactId>
 				<version>${authenticationVersion}</version>
 				<scope>provided</scope>
@@ -586,6 +607,7 @@
 		<openmrsPlatformVersion>2.8.8</openmrsPlatformVersion>
 		<openmrsPlatformToolsVersion>2.8.8</openmrsPlatformToolsVersion>
 		<fhir2Version>4.2.0</fhir2Version>
+		<webservicesRestVersion>3.5.0</webservicesRestVersion>
 		<authenticationVersion>2.3.0</authenticationVersion>
 		<nimbusVersion>9.48</nimbusVersion>
 		<junitVersion>5.11.4</junitVersion>

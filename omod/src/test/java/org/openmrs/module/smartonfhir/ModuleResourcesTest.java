@@ -105,7 +105,9 @@ class ModuleResourcesTest {
 		assertFalse(required.isEmpty(), "the module should declare its dependencies");
 
 		for (String module : required) {
-			assertTrue(module.equals("org.openmrs.module.fhir2") || module.equals("org.openmrs.module.authentication"),
+			assertTrue(
+			    module.equals("org.openmrs.module.fhir2") || module.equals("org.openmrs.module.authentication")
+			            || module.equals("org.openmrs.module.webservices.rest"),
 			    "config.xml requires '" + module + "', which is not part of RefApp 3.7.1. The RefApp 2.x UI modules "
 			            + "in particular (uiframework, appframework, coreapps, appui) are absent from 3.x.");
 		}
