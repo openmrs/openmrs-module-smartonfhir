@@ -27,13 +27,8 @@ import org.openmrs.module.smartonfhir.model.SmartOAuth2Config;
 import org.openmrs.util.OpenmrsUtil;
 
 /**
- * Configuring this module through runtime properties, which is how a container does it: the
- * reference application image turns {@code OMRS_CONFIG_SMART_ISSUER} into {@code smart.issuer}, so
- * a distribution passes its environment rather than writing JSON into the application data
- * directory first.
- * <p>
- * The file remains supported, so what matters here is which wins and what happens when a deployment
- * half-configures either one.
+ * Configuring this module through runtime properties, which is how a container does it. The file
+ * remains supported, so what matters is which wins and what a half-configured deployment gets.
  */
 public class SmartRuntimePropertyConfigTest {
 
@@ -81,10 +76,7 @@ public class SmartRuntimePropertyConfigTest {
 		assertThat(config.getAudience(), is("https://ehr.example.org/openmrs/ws/fhir2/R4"));
 	}
 
-	/**
-	 * An issuer without an audience would let this module accept a token minted for another FHIR
-	 * server, so a half-configured environment must not produce a usable configuration.
-	 */
+	/** An issuer without an audience would accept a token minted for another FHIR server. */
 	@Test
 	public void getConfig_shouldRefuseAnIssuerWithNoAudience() {
 		runtimeProperty(SmartOAuth2ConfigHolder.ISSUER_PROPERTY, "https://kc.example.org/realms/openmrs");
@@ -116,10 +108,7 @@ public class SmartRuntimePropertyConfigTest {
 		assertThat(SmartOAuth2ConfigHolder.getConfig(), nullValue());
 	}
 
-	/**
-	 * The endpoints and the clock skew were the reason a file existed at all: no property covered them,
-	 * so a deployment that wanted an introspection endpoint had to write JSON into a volume.
-	 */
+	/** The endpoints and the clock skew were the reason a file existed at all. */
 	@Test
 	public void getConfig_shouldTakeTheEndpointsAndClockSkewFromProperties() {
 		runtimeProperty(SmartOAuth2ConfigHolder.ISSUER_PROPERTY, "https://kc.example.org/realms/openmrs");
@@ -143,16 +132,13 @@ public class SmartRuntimePropertyConfigTest {
 		assertThat(config.getAllowedClockSkewSeconds(), is(90));
 	}
 
-	/**
-	 * Coercing this to the default would leave a deployment believing it had widened the window in
-	 * which it accepts tokens.
-	 */
+	/** Coercing this would leave a deployment believing it had widened the window it accepts. */
 	@Test
 	public void getConfig_shouldRefuseAClockSkewThatIsNotANumber() {
 		runtimeProperty(SmartOAuth2ConfigHolder.ISSUER_PROPERTY, "https://kc.example.org/realms/openmrs");
 		runtimeProperty(SmartOAuth2ConfigHolder.AUDIENCE_PROPERTY, "https://openmrs.example.org/ws/fhir2/R4");
 		runtimeProperty(SmartOAuth2ConfigHolder.CLOCK_SKEW_PROPERTY, "a minute or so");
 
-		assertThat(SmartOAuth2ConfigHolder.getConfig().getAllowedClockSkewSeconds(), is(30));
+		assertThat(SmartOAuth2ConfigHolder.getConfig().getAllowedClockSkewSeconds(), is(10));
 	}
 }

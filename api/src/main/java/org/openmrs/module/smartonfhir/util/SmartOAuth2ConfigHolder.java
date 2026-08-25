@@ -19,8 +19,8 @@ import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartOAuth2Config;
 
 /**
- * Loads {@link SmartOAuth2Config} from the {@code smart.*} runtime properties. There is deliberately
- * no default: which authorization server to trust is a deployment decision.
+ * Loads {@link SmartOAuth2Config} from the {@code smart.*} runtime properties. There is
+ * deliberately no default: which authorization server to trust is a deployment decision.
  */
 @Slf4j
 public class SmartOAuth2ConfigHolder {
@@ -54,13 +54,8 @@ public class SmartOAuth2ConfigHolder {
 	}
 
 	/**
-	 * Runtime properties that override their corresponding key in the file.
-	 * <p>
-	 * The reference application image turns {@code OMRS_CONFIG_SMART_ISSUER} into {@code smart.issuer}
-	 * and so on, so a container is configured through its environment rather than by writing a JSON
-	 * file into the application data directory. Each property replaces only the key it names: the file
-	 * is still the way to express what these five do not cover, and setting one no longer discards the
-	 * rest of the file.
+	 * The reference application's image turns {@code OMRS_EXTRA_SMART_ISSUER} into
+	 * {@code smart.issuer}, so a container is configured from its environment.
 	 */
 	public static final String ISSUER_PROPERTY = "smart.issuer";
 
@@ -97,8 +92,7 @@ public class SmartOAuth2ConfigHolder {
 				        + "authorization server.",
 				    ISSUER_PROPERTY, AUDIENCE_PROPERTY);
 			} else {
-				// Half-configured is the dangerous case: an issuer without an audience would accept a
-				// token minted for another FHIR server.
+				// An issuer without an audience would accept a token minted for another FHIR server.
 				log.error("SMART on FHIR has {}, and needs both. Set the missing one as {} or {}.", describe(candidate),
 				    ISSUER_PROPERTY, AUDIENCE_PROPERTY);
 			}
@@ -113,9 +107,8 @@ public class SmartOAuth2ConfigHolder {
 	}
 
 	/**
-	 * Reads every key from the runtime properties, leaving the model's own defaults where a property is
-	 * absent -- {@code preferred_username} for the username claim, thirty seconds of clock skew, and
-	 * endpoints derived from the issuer.
+	 * Reads every key from the runtime properties, leaving the model's own defaults where one is
+	 * absent.
 	 *
 	 * @return the names of the properties that were applied, for logging
 	 */
@@ -126,8 +119,7 @@ public class SmartOAuth2ConfigHolder {
 			properties = Context.getRuntimeProperties();
 		}
 		catch (Exception e) {
-			// Reached before the runtime properties exist. Nothing is configured yet, and the next
-			// lookup tries again rather than latching.
+			// Reached before the runtime properties exist, so the next lookup tries again.
 			return Collections.emptyList();
 		}
 
@@ -167,8 +159,7 @@ public class SmartOAuth2ConfigHolder {
 			applied.add(USERNAME_CLAIM_PROPERTY);
 		}
 
-		// The endpoints a deployment states rather than has derived from its issuer. Introspection is
-		// never derived, so a property is the only way to have one advertised at all.
+		// Introspection is never derived, so a property is the only way to advertise one at all.
 		applyEndpoints(properties, target, applied);
 		applyClockSkew(properties, target, applied);
 
@@ -214,9 +205,8 @@ public class SmartOAuth2ConfigHolder {
 	}
 
 	/**
-	 * Clock skew is the one numeric key, so a value that is not a number is refused rather than
-	 * coerced: falling back to the default in silence would leave a deployment believing it had widened
-	 * the window in which it accepts tokens.
+	 * A value that is not a number is refused rather than coerced, so a deployment cannot believe it
+	 * widened the window in which tokens are accepted when it did not.
 	 */
 	private static void applyClockSkew(Properties properties, SmartOAuth2Config target, List<String> applied) {
 		final String skew = trimmed(properties.getProperty(CLOCK_SKEW_PROPERTY));
@@ -244,6 +234,6 @@ public class SmartOAuth2ConfigHolder {
 	}
 
 	private static String trimmed(String value) {
-		return value == null || value.trim().isEmpty() ? null : value.trim();
+		return value == null || value.isBlank() ? null : value.trim();
 	}
 }

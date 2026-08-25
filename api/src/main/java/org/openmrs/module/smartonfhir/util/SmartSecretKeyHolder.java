@@ -18,12 +18,8 @@ import org.openmrs.api.context.Context;
 public class SmartSecretKeyHolder {
 
 	/**
-	 * The runtime property the secret is read from, in preference to the configuration file.
-	 * <p>
-	 * A container sets this without a mounted file: the reference application image turns
-	 * {@code OMRS_CONFIG_SMART_LAUNCH_SECRET} into this property, so a distribution can pass the secret
-	 * in its environment rather than writing a JSON file into the application data directory first. The
-	 * file remains supported for a deployment that already has one.
+	 * The runtime property the secret is read from, in preference to the configuration file, so a
+	 * container can pass it in the environment as {@code OMRS_EXTRA_SMART_LAUNCH_SECRET}.
 	 */
 	public static final String SECRET_RUNTIME_PROPERTY = "smart.launch.secret";
 
@@ -53,12 +49,8 @@ public class SmartSecretKeyHolder {
 	}
 
 	/**
-	 * Reads the secret from {@link #SECRET_RUNTIME_PROPERTY}, returning whether it was both set and
-	 * usable.
-	 * <p>
-	 * A property that is set but unusable returns {@code true}: an operator who configured a secret and
-	 * got it wrong should see that error rather than have the module quietly fall back to a file they
-	 * were not editing.
+	 * Reads the secret from {@link #SECRET_RUNTIME_PROPERTY}. A property that is set but unusable still
+	 * counts as set, so the error is reported rather than hidden by a fallback to the file.
 	 */
 	private static boolean loadFromRuntimeProperty() {
 		String encoded;
@@ -71,7 +63,7 @@ public class SmartSecretKeyHolder {
 			return false;
 		}
 
-		if (encoded == null || encoded.trim().isEmpty()) {
+		if (encoded == null || encoded.isBlank()) {
 			return false;
 		}
 
