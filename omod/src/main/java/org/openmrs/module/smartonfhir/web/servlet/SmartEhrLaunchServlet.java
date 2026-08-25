@@ -14,44 +14,114 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpStatus;
-import org.openmrs.module.smartonfhir.model.SmartSession;
-import org.openmrs.module.smartonfhir.util.FhirBaseAddressStrategy;
-import org.openmrs.module.smartonfhir.util.SmartSessionCache;
+import org.openmrs.User;
+import org.openmrs.api.APIAuthenticationException;
+import org.openmrs.api.context.Context;
+import org.openmrs.module.smartonfhir.api.SmartAppService;
+import org.openmrs.module.smartonfhir.model.SmartApp;
+import org.openmrs.module.smartonfhir.util.SmartLaunchContextService;
+import org.openmrs.module.smartonfhir.web.util.FhirBaseAddressStrategy;
 
+/**
+ * Starts an EHR launch: a redirect to the app's launch URL with {@code iss} and a single-use
+ * {@code launch} handle. The address comes from the registry, and the context is resolved first.
+ */
+@Slf4j
 public class SmartEhrLaunchServlet extends HttpServlet {
-	
+
+	private static final long serialVersionUID = 1L;
+
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
-		FhirBaseAddressStrategy fhirBaseAddressStrategy = new FhirBaseAddressStrategy();
-		String patientId = req.getParameter("patientId");
-		String visitId = req.getParameter("visitId");
-		String launchContext = req.getParameter("launchContext");
-		String url = fhirBaseAddressStrategy.getBaseSmartLaunchAddress(req);
-		
-		SmartSessionCache smartSessionCache = new SmartSessionCache();
-		SmartSession smartSession = new SmartSession();
-		
-		smartSession.setPatientUuid(patientId);
-		smartSession.setVisitUuid(visitId);
-		
-		if (launchContext.equals("patient")) {
-			url = url + patientId;
-			smartSessionCache.put(patientId, smartSession);
-		}
-		
-		if (launchContext.equals("encounter")) {
-			url = url + visitId;
-			smartSessionCache.put(visitId, smartSession);
-		}
-		
-		if (StringUtils.isBlank(url)) {
-			resp.sendError(HttpStatus.SC_BAD_REQUEST, "A url must be provided");
+		final User user = Context.getAuthenticatedUser();
+
+		// Checked first, so an unauthenticated caller cannot learn which app ids are registered.
+		if (user == null) {
+			resp.sendError(HttpStatus.SC_UNAUTHORIZED, "A launch must be started by an authenticated user");
 			return;
 		}
-		
-		resp.sendRedirect(resp.encodeRedirectURL(url));
+
+		final String appId = req.getParameter("appId");
+		final String patientId = req.getParameter("patientId");
+		final String visitId = req.getParameter("visitId");
+
+		if (StringUtils.isBlank(appId)) {
+			resp.sendError(HttpStatus.SC_BAD_REQUEST, "An appId must be provided");
+			return;
+		}
+
+		final SmartApp app = Context.getService(SmartAppService.class).getSmartAppByUuid(appId);
+
+		if (app == null || app.getRetired()) {
+			// Refused rather than launched: an unregistered app is one this deployment has not permitted.
+			log.error("Refused a launch for '{}', which is not a registered app", appId);
+			resp.sendError(HttpStatus.SC_NOT_FOUND, "No such app");
+			return;
+		}
+
+		final String launchContext = StringUtils.defaultIfBlank(app.getLaunchContext(), "patient");
+		final String contextId = "encounter".equals(launchContext) ? visitId : patientId;
+
+		if (StringUtils.isBlank(contextId)) {
+			resp.sendError(HttpStatus.SC_BAD_REQUEST,
+			    "encounter".equals(launchContext) ? "A visitId must be provided" : "A patientId must be provided");
+			return;
+		}
+
+		// A handle for a context that does not exist is redeemable but names nothing.
+		if (!contextExists(launchContext, patientId, visitId, resp)) {
+			return;
+		}
+
+		final String issuer = new FhirBaseAddressStrategy().getFhirBaseUrl(req);
+
+		if (StringUtils.isBlank(issuer)) {
+			resp.sendError(HttpStatus.SC_INTERNAL_SERVER_ERROR, "Could not determine the FHIR base URL");
+			return;
+		}
+
+		// Opaque and single-use, so it neither discloses the context nor can be forged from a uuid.
+		final String launchHandle = new SmartLaunchContextService().issue(SmartLaunchContextService.identify(user),
+		    patientId, visitId);
+
+		final String separator = app.getLaunchUrl().contains("?") ? "&" : "?";
+		final String target = app.getLaunchUrl() + separator + "iss="
+		        + URLEncoder.encode(issuer, StandardCharsets.UTF_8.name()) + "&launch="
+		        + URLEncoder.encode(launchHandle, StandardCharsets.UTF_8.name());
+
+		resp.sendRedirect(resp.encodeRedirectURL(target));
+	}
+
+	/** Whether this launch's context can be read; answers the response itself when it cannot. */
+	private boolean contextExists(String launchContext, String patientId, String visitId, HttpServletResponse resp)
+	        throws IOException {
+		final boolean forEncounter = "encounter".equals(launchContext);
+		final String uuid = forEncounter ? visitId : patientId;
+		final String what = forEncounter ? "visit" : "patient";
+
+		try {
+			Object context = forEncounter ? Context.getVisitService().getVisitByUuid(uuid)
+			        : Context.getPatientService().getPatientByUuid(uuid);
+
+			if (context == null) {
+				log.error("Refused a launch: no {} with uuid {}", what, uuid);
+				resp.sendError(HttpStatus.SC_BAD_REQUEST, "No such " + what);
+				return false;
+			}
+		}
+		catch (APIAuthenticationException e) {
+			// A launch grants the app the clinician's own access, which they do not have here.
+			log.error("Refused a launch: not permitted to read the {} {}", what, uuid, e);
+			resp.sendError(HttpStatus.SC_FORBIDDEN, "Not permitted to launch for this " + what);
+			return false;
+		}
+
+		return true;
 	}
 }

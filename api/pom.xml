@@ -21,6 +21,18 @@
 			<groupId>org.openmrs.module</groupId>
 			<artifactId>fhir2-api</artifactId>
 		</dependency>
+		<dependency>
+			<groupId>org.openmrs.api</groupId>
+			<artifactId>openmrs-api</artifactId>
+			<classifier>tests</classifier>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.openmrs.test</groupId>
+			<artifactId>openmrs-test</artifactId>
+			<type>pom</type>
+			<scope>test</scope>
+		</dependency>
 		<!-- Verifies SMART access tokens and signs the launch handshake. -->
 		<dependency>
 			<groupId>com.nimbusds</groupId>

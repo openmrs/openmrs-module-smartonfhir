@@ -20,4 +20,37 @@
   		    http://www.springframework.org/schema/context/spring-context-3.0.xsd">
 
     <context:component-scan base-package="org.openmrs.module.smartonfhir" />
+
+    <bean id="smartAppDao" class="org.openmrs.module.smartonfhir.api.dao.impl.HibernateSmartAppDao">
+        <property name="sessionFactory">
+            <ref bean="dbSessionFactory"/>
+        </property>
+    </bean>
+
+    <!-- Registered with the service context, so Context.getService resolves it and @Authorized applies. -->
+    <bean parent="serviceContext">
+        <property name="moduleService">
+            <list merge="true">
+                <value>org.openmrs.module.smartonfhir.api.SmartAppService</value>
+                <bean class="org.springframework.transaction.interceptor.TransactionProxyFactoryBean">
+                    <property name="transactionManager">
+                        <ref bean="transactionManager"/>
+                    </property>
+                    <property name="target">
+                        <bean class="org.openmrs.module.smartonfhir.api.impl.SmartAppServiceImpl">
+                            <property name="dao">
+                                <ref bean="smartAppDao"/>
+                            </property>
+                        </bean>
+                    </property>
+                    <property name="preInterceptors">
+                        <ref bean="serviceInterceptors"/>
+                    </property>
+                    <property name="transactionAttributeSource">
+                        <ref bean="transactionAttributeSource"/>
+                    </property>
+                </bean>
+            </list>
+        </property>
+    </bean>
 </beans>
