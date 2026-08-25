@@ -4,31 +4,20 @@ on:
   push:
     branches: [ master ]
   pull_request:
-    # The FM2-687 layers are based on each other rather than on master, and a
-    # pull_request filter matches the base branch -- so a master-only filter
-    # leaves every layer above the bottom one with no checks at all.
-    branches: [ master, 'fm2/**' ]
+    branches: [ master ]
   workflow_dispatch:
 
 jobs:
   build:
     uses: openmrs/openmrs-contrib-gha-workflows/.github/workflows/build-backend-module.yml@main
     with:
-      # Stated rather than inferred. The shared workflow derives the matrix from the OpenMRS
-      # platform dependency, which for 2.8.8 includes Java 8 -- and this module sets
-      # maven.compiler.release=17, so a JDK 8 build cannot compile it at all. 17 is the
-      # bytecode target; 21 is what RefApp 3.7.1 actually runs it on. Both have to pass.
+      # this module supports Java 17 as a minimum
       java_versions: '[17, 21]'
-      # The build whose omod is published. Must be the bytecode target, or the artifact would
-      # carry class files the stated target does not promise.
       main_java_version: '17'
     secrets:
       MAVEN_REPO_USERNAME: ${{ secrets.MAVEN_REPO_USERNAME }}
       MAVEN_REPO_API_KEY: ${{ secrets.MAVEN_REPO_API_KEY }}
 
-  # Not on pull requests: the scan fails the build at CVSS 6.2, and a CVE published in a
-  # transitive dependency would then block a review that has nothing to do with it. It also
-  # cannot read NVD_API_KEY from a fork, so it runs slowly and rate-limited there.
   owasp-dependency-check:
     if: ${{ github.event_name != 'pull_request' }}
     uses: openmrs/openmrs-contrib-gha-workflows/.github/workflows/owasp-dependency-check.yml@main
