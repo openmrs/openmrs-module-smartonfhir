@@ -44,10 +44,8 @@ import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.util.SmartAppRegistry;
 
 /**
- * A launch handle is a credential: it is redeemable, and it stands for a clinician and a patient.
- * So one must not be issued for a context that does not exist -- the app would be sent on its way,
- * ask for the patient it was told about, and be told there is none, with nothing anywhere saying
- * why. The chart only ever names ids it is displaying, so a miss here means a hand-made URL.
+ * A launch handle is a redeemable credential, so one must not be issued for a context that does not
+ * exist: the app would ask for the patient it was told about and be told there is none.
  */
 @ExtendWith(MockitoExtension.class)
 public class SmartEhrLaunchServletTest {
@@ -98,7 +96,7 @@ public class SmartEhrLaunchServletTest {
 
 		serve();
 
-		verify(response).sendError(eq(HttpStatus.SC_NOT_FOUND), anyString());
+		verify(response).sendError(eq(HttpStatus.SC_BAD_REQUEST), anyString());
 		// The point of the test: nothing was minted and nowhere was the browser sent.
 		verify(response, never()).sendRedirect(anyString());
 	}
@@ -128,7 +126,7 @@ public class SmartEhrLaunchServletTest {
 
 		serve();
 
-		verify(response).sendError(eq(HttpStatus.SC_NOT_FOUND), anyString());
+		verify(response).sendError(eq(HttpStatus.SC_BAD_REQUEST), anyString());
 		verify(response, never()).sendRedirect(anyString());
 	}
 
@@ -146,9 +144,8 @@ public class SmartEhrLaunchServletTest {
 	}
 
 	/**
-	 * Reading the context is privileged, and this is the one path where someone who may start a launch
-	 * might not be allowed to see what it is for. A launch hands the app the clinician's own access, so
-	 * refusing is the answer rather than issuing a handle nobody could have used.
+	 * A launch hands the app the clinician's own access, so someone who may not read the context is
+	 * refused rather than given a handle nobody could have used.
 	 */
 	@Test
 	public void doGet_shouldRefuseALaunchWhenTheContextCannotBeRead() throws Exception {

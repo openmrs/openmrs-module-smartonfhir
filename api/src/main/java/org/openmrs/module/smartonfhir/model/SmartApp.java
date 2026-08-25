@@ -10,18 +10,11 @@
 package org.openmrs.module.smartonfhir.model;
 
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
-/**
- * A SMART app this deployment permits to be launched, as declared in the runtime properties under
- * {@code smart.app.<id>.}.
- * <p>
- * The reason this exists is {@link #launchUrl}. An EHR launch has to send the browser to the app,
- * and that address used to be taken from a request parameter — so anyone who could reach the launch
- * servlet could have a single-use launch handle delivered to a host of their choosing. Recording
- * the permitted apps means the launch servlet is asked for an app by id and looks the address up,
- * rather than being told where to send the clinician.
- */
+/** A SMART app this deployment permits to be launched. */
 @Data
+@NoArgsConstructor
 public class SmartApp {
 
 	/** How a launch names this app. Stable, and safe to put in a URL. */
@@ -33,33 +26,30 @@ public class SmartApp {
 	/** Optional, shown alongside the name. */
 	private String description;
 
-	/**
-	 * Where the launch is sent, which the specification calls the app's launch URL. The {@code iss} and
-	 * {@code launch} parameters are appended to it.
-	 */
+	/** The app's launch URL, to which {@code iss} and {@code launch} are appended. */
 	private String launchUrl;
 
-	/**
-	 * The app's client id at the authorization server. Not used to launch — the app sends its own — but
-	 * recorded so a deployment can tell which registration an entry belongs to.
-	 */
+	/** The app's client id at the authorization server, recorded only to identify its registration. */
 	private String clientId;
 
-	/**
-	 * {@code patient} or {@code encounter}. What context this app expects to be launched with; a launch
-	 * that asks for something else is refused.
-	 */
+	/** {@code patient} or {@code encounter}; a launch asking for anything else is refused. */
 	private String launchContext = "patient";
 
-	/**
-	 * An entry missing either of these cannot be launched, and is worse than absent: it would appear in
-	 * a list of apps and then fail when chosen.
-	 */
+	public SmartApp(SmartApp other) {
+		this.id = other.id;
+		this.name = other.name;
+		this.description = other.description;
+		this.launchUrl = other.launchUrl;
+		this.clientId = other.clientId;
+		this.launchContext = other.launchContext;
+	}
+
+	/** An entry missing either of these would be listed and then fail when chosen, so it is refused. */
 	public boolean isUsable() {
 		return isNotBlank(id) && isNotBlank(launchUrl);
 	}
 
 	private static boolean isNotBlank(String value) {
-		return value != null && !value.trim().isEmpty();
+		return value != null && !value.isBlank();
 	}
 }
