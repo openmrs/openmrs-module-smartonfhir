@@ -13,6 +13,8 @@ import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.hamcrest.Matchers.nullValue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.nio.file.Path;
 import java.util.Base64;
@@ -130,6 +132,40 @@ public class SmartRuntimePropertyConfigTest {
 		assertThat(config.getRegistrationEndpoint(), is("https://kc.example.org/register"));
 		assertThat(config.getEndSessionEndpoint(), is("https://kc.example.org/logout"));
 		assertThat(config.getAllowedClockSkewSeconds(), is(90));
+	}
+
+	/**
+	 * The review asked for these three to be configurable, so each has to be reachable from a property
+	 * rather than only settable on the model.
+	 */
+	@Test
+	public void getConfig_shouldReadTheVerifierSettingsFromProperties() {
+		runtimeProperty(SmartOAuth2ConfigHolder.ISSUER_PROPERTY, "https://kc.example.org/realms/openmrs");
+		runtimeProperty(SmartOAuth2ConfigHolder.AUDIENCE_PROPERTY, "https://openmrs.example.org/ws/fhir2/R4");
+		runtimeProperty(SmartOAuth2ConfigHolder.SIGNATURE_ALGORITHMS_PROPERTY, "ES256 ES384");
+		runtimeProperty(SmartOAuth2ConfigHolder.DISCOVERY_TIMEOUT_PROPERTY, "3");
+		runtimeProperty(SmartOAuth2ConfigHolder.JWKS_CACHE_PROPERTY, "600");
+
+		SmartOAuth2Config config = SmartOAuth2ConfigHolder.getConfig();
+
+		assertNotNull(config);
+		assertEquals("ES256 ES384", config.getSignatureAlgorithms());
+		assertEquals(3, config.getDiscoveryTimeoutSeconds());
+		assertEquals(600, config.getJwksCacheSeconds());
+	}
+
+	/** Refused rather than coerced, as the clock skew is, so a default cannot stand in silence. */
+	@Test
+	public void getConfig_shouldRefuseATimeoutThatIsNotANumber() {
+		runtimeProperty(SmartOAuth2ConfigHolder.ISSUER_PROPERTY, "https://kc.example.org/realms/openmrs");
+		runtimeProperty(SmartOAuth2ConfigHolder.AUDIENCE_PROPERTY, "https://openmrs.example.org/ws/fhir2/R4");
+		runtimeProperty(SmartOAuth2ConfigHolder.DISCOVERY_TIMEOUT_PROPERTY, "ten");
+		runtimeProperty(SmartOAuth2ConfigHolder.JWKS_CACHE_PROPERTY, "a while");
+
+		SmartOAuth2Config config = SmartOAuth2ConfigHolder.getConfig();
+
+		assertEquals(10, config.getDiscoveryTimeoutSeconds(), "the default must stand");
+		assertEquals(0, config.getJwksCacheSeconds(), "the default must stand");
 	}
 
 	/** Coercing this would leave a deployment believing it had widened the window it accepts. */

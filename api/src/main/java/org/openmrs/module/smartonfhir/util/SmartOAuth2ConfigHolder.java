@@ -13,6 +13,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Properties;
+import java.util.function.IntConsumer;
+import java.util.function.IntSupplier;
 
 import lombok.extern.slf4j.Slf4j;
 import org.openmrs.api.context.Context;
@@ -80,6 +82,12 @@ public class SmartOAuth2ConfigHolder {
 	public static final String REGISTRATION_ENDPOINT_PROPERTY = "smart.registration.endpoint";
 
 	public static final String END_SESSION_ENDPOINT_PROPERTY = "smart.end.session.endpoint";
+
+	public static final String SIGNATURE_ALGORITHMS_PROPERTY = "smart.signature.algorithms";
+
+	public static final String DISCOVERY_TIMEOUT_PROPERTY = "smart.discovery.timeout.seconds";
+
+	public static final String JWKS_CACHE_PROPERTY = "smart.jwks.cache.seconds";
 
 	private static void load() {
 		final SmartOAuth2Config candidate = new SmartOAuth2Config();
@@ -159,9 +167,18 @@ public class SmartOAuth2ConfigHolder {
 			applied.add(USERNAME_CLAIM_PROPERTY);
 		}
 
+		final String algorithms = trimmed(properties.getProperty(SIGNATURE_ALGORITHMS_PROPERTY));
+		if (algorithms != null) {
+			target.setSignatureAlgorithms(algorithms);
+			applied.add(SIGNATURE_ALGORITHMS_PROPERTY);
+		}
+
 		// Introspection is never derived, so a property is the only way to advertise one at all.
 		applyEndpoints(properties, target, applied);
 		applyClockSkew(properties, target, applied);
+		applySeconds(properties, DISCOVERY_TIMEOUT_PROPERTY, target::setDiscoveryTimeoutSeconds,
+		    target::getDiscoveryTimeoutSeconds, applied);
+		applySeconds(properties, JWKS_CACHE_PROPERTY, target::setJwksCacheSeconds, target::getJwksCacheSeconds, applied);
 
 		return applied;
 	}
@@ -209,19 +226,28 @@ public class SmartOAuth2ConfigHolder {
 	 * widened the window in which tokens are accepted when it did not.
 	 */
 	private static void applyClockSkew(Properties properties, SmartOAuth2Config target, List<String> applied) {
-		final String skew = trimmed(properties.getProperty(CLOCK_SKEW_PROPERTY));
+		applySeconds(properties, CLOCK_SKEW_PROPERTY, target::setAllowedClockSkewSeconds, target::getAllowedClockSkewSeconds,
+		    applied);
+	}
 
-		if (skew == null) {
+	/**
+	 * Refused rather than coerced, for the same reason: a default that silently stands is a surprise.
+	 */
+	private static void applySeconds(Properties properties, String property, IntConsumer setter, IntSupplier currentValue,
+	        List<String> applied) {
+		final String seconds = trimmed(properties.getProperty(property));
+
+		if (seconds == null) {
 			return;
 		}
 
 		try {
-			target.setAllowedClockSkewSeconds(Integer.parseInt(skew));
-			applied.add(CLOCK_SKEW_PROPERTY);
+			setter.accept(Integer.parseInt(seconds));
+			applied.add(property);
 		}
 		catch (NumberFormatException e) {
-			log.error("Ignoring {}={}: it is not a whole number of seconds, so the default of {} stands",
-			    CLOCK_SKEW_PROPERTY, skew, target.getAllowedClockSkewSeconds());
+			log.error("Ignoring {}={}: it is not a whole number of seconds, so the default of {} stands", property, seconds,
+			    currentValue.getAsInt());
 		}
 	}
 
