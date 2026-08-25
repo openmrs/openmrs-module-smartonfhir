@@ -21,62 +21,69 @@ import lombok.extern.slf4j.Slf4j;
 import org.openmrs.api.context.Context;
 
 /**
- * The entry point the authorization server sends a clinician to when a launch needs a patient
- * chosen.
- * <p>
- * The screen itself is a frontend module, served by the single-page application host rather than by
- * OpenMRS. That host will not render any route until it has an authenticated session, and redirects
- * to the login page when it does not have one — which would discard the launch token in the URL and
- * end the launch. So the launch cannot land on the frontend route directly.
- * <p>
- * This servlet exists to be that landing place instead. It is mapped behind
- * {@link org.openmrs.module.smartonfhir.web.filter.AuthenticationByPassFilter}, which reads the
- * launch token and establishes the session, and it then redirects to the frontend route carrying
- * the same token. By the time the browser reaches the single-page application the session already
- * exists, so the route renders and the token is still in hand for the hand-off back to the
- * authorization server.
+ * Where a launch lands when it needs a patient chosen. The frontend picker would bounce to its
+ * login page and lose the token, so the session is established here first and the token forwarded.
  */
 @Slf4j
 public class SmartPatientSelectionServlet extends HttpServlet {
 
 	private static final long serialVersionUID = 1L;
 
+	/** Overrides the default route, for a deployment whose picker is its own frontend module. */
+	static final String ROUTE_PROPERTY = "smart.launch.patientSelectionRoute";
+
 	/** The route registered by the SMART app launch frontend module. */
-	private static final String PATIENT_SELECTION_ROUTE = "/spa/smart/select-patient";
+	private static final String DEFAULT_ROUTE = "/spa/smart/select-patient";
 
 	@Override
 	protected void doGet(HttpServletRequest request, HttpServletResponse response) throws IOException {
 		String token = request.getParameter("token");
 
-		if (token == null || token.trim().isEmpty()) {
+		if (token == null || token.isBlank()) {
 			log.error("A patient selection was requested with no launch token");
 			response.sendError(HttpServletResponse.SC_BAD_REQUEST, "No launch token");
 			return;
 		}
 
-		// The bypass filter runs first and authenticates from the token. Reaching this point
-		// unauthenticated means the token was missing, expired, or not signed with the shared
-		// secret, and the launch cannot continue.
+		// The bypass filter authenticates from the token, so reaching here unauthenticated ends it.
 		if (!Context.isAuthenticated()) {
 			log.error("The launch token did not identify a user, so no patient can be selected");
 			response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
 			return;
 		}
 
-		StringBuilder target = new StringBuilder(request.getContextPath()).append(PATIENT_SELECTION_ROUTE).append("?token=")
+		StringBuilder target = new StringBuilder(request.getContextPath()).append(patientSelectionRoute()).append("?token=")
 		        .append(URLEncoder.encode(token, StandardCharsets.UTF_8.name()));
 
-		// Passed through only so the screen can name the app that is asking. It is the authorization
-		// server's own description of the client and carries no authority.
+		// Passed through only so the screen can name the app asking; it carries no authority.
 		String appName = request.getParameter("appName");
-		if (appName != null && !appName.trim().isEmpty()) {
+		if (appName != null && !appName.isBlank()) {
 			target.append("&appName=").append(URLEncoder.encode(appName, StandardCharsets.UTF_8.name()));
 		}
 
-		// Deliberately not encodeRedirectURL: the session cookie is set on this very response, so the
-		// browser has it before it follows the redirect. Encoding would instead append the session id
-		// to the path, putting it in the address bar, browser history and any referrer the launched app
-		// sees — and the single-page application needs cookies regardless.
+		// Not encodeRedirectURL, which would put the session id in the address bar and every referrer.
 		response.sendRedirect(target.toString());
+	}
+
+	/** Matched case-insensitively, since the reference application's image lower-cases what it maps. */
+	private String patientSelectionRoute() {
+		try {
+			for (String name : Context.getRuntimeProperties().stringPropertyNames()) {
+				if (!name.equalsIgnoreCase(ROUTE_PROPERTY)) {
+					continue;
+				}
+
+				String configured = Context.getRuntimeProperties().getProperty(name);
+
+				if (configured != null && !configured.isBlank()) {
+					return configured.trim();
+				}
+			}
+		}
+		catch (Exception e) {
+			log.debug("The runtime properties are not readable yet, so the default route is used", e);
+		}
+
+		return DEFAULT_ROUTE;
 	}
 }

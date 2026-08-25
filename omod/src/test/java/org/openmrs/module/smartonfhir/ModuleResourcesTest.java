@@ -33,12 +33,8 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * The module's XML resources are parsed by OpenMRS at startup, not by the compiler, so a malformed
- * one builds and packages perfectly and then fails at runtime.
- * <p>
- * It fails badly, too. A Spring context that will not parse stops this module starting, and OpenMRS
- * abandons module startup altogether: a single bad character here took all 31 modules of RefApp
- * 3.7.1 down at once, leaving the REST API answering 404. These tests exist because that happened.
+ * The module's XML resources are parsed at startup rather than by the compiler, so a malformed one
+ * packages perfectly and then stops every module in the distribution from starting.
  */
 class ModuleResourcesTest {
 
@@ -73,8 +69,7 @@ class ModuleResourcesTest {
 	void parsesAsXml(Path resource) {
 		assertDoesNotThrow(() -> {
 			DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
-			// OpenMRS resources reference DTDs by URL; resolving them would make this test depend on
-			// the network, and parsing is what is under test here, not validation.
+			// These reference DTDs by URL, and parsing is what is under test here, not validation.
 			factory.setValidating(false);
 			factory.setFeature("http://apache.org/xml/features/nonvalidating/load-external-dtd", false);
 			factory.newDocumentBuilder().parse(resource.toFile());
@@ -117,12 +112,8 @@ class ModuleResourcesTest {
 	}
 
 	/**
-	 * The authentication bypass filter keeps its bypass-eligible URLs in two places that have to agree:
-	 * the servlet mappings decide which requests it sees at all, and its {@code validUrls} init-param
-	 * decides which of those may present a launch token. A URL in only one of the two fails quietly —
-	 * mapped but not valid means the filter runs and refuses to read the token, and valid but not
-	 * mapped means the filter never runs and the token is ignored. Either way the request simply
-	 * arrives unauthenticated, which looks like a permissions problem.
+	 * The bypass filter's mappings and its {@code validUrls} init-param have to agree: a URL in only
+	 * one of the two quietly arrives unauthenticated, which reads as a permissions problem.
 	 */
 	@Test
 	@DisplayName("the bypass filter's valid URLs and its mappings agree")
@@ -163,17 +154,12 @@ class ModuleResourcesTest {
 			            + "is never read. Mappings are: " + patterns);
 		}
 
-		// The session endpoint was mapped here for a while so the frontend could exchange a launch
-		// token. That put this filter, which logs out stale sessions, in front of the endpoint O3 uses
-		// to log in. The launch establishes its session through the patient-selection servlet instead.
+		// Not the session endpoint: this filter logs out stale sessions, and O3 logs in through it.
 		assertFalse(patterns.contains("/ws/rest/v1/session"),
 		    "this filter must not sit in front of the session endpoint that O3 logs in through");
 	}
 
-	/**
-	 * A launch that needs a patient chosen is redirected here by the authorization server. If the
-	 * servlet is not registered the redirect 404s part-way through the launch.
-	 */
+	/** A launch needing a patient is redirected here, and 404s part-way through if it is unmapped. */
 	@Test
 	@DisplayName("the patient-selection servlet is registered")
 	void patientSelectionServletIsRegistered() throws IOException {

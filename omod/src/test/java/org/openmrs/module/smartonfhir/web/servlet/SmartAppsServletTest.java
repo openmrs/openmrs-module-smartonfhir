@@ -42,9 +42,8 @@ import org.openmrs.module.smartonfhir.util.SmartAppRegistry;
 import org.openmrs.util.PrivilegeConstants;
 
 /**
- * What a chart screen is handed, and what it is not. The list of integrated apps is already gated
- * on authentication; the report of what the registry refused is gated harder, because those
- * messages name the property keys a deployment set.
+ * What a chart screen is handed, and what it is not: the app list needs authentication, and the
+ * refusal report needs more, since those messages name the property keys a deployment set.
  */
 @ExtendWith(MockitoExtension.class)
 public class SmartAppsServletTest {
@@ -95,8 +94,7 @@ public class SmartAppsServletTest {
 		List<Map<String, String>> apps = (List<Map<String, String>>) body.get("apps");
 		assertThat(apps, hasSize(1));
 		assertThat(apps.get(0), hasKey("name"));
-		// A chart screen launches by id, so the address and the client id are of no use to it and are
-		// not worth handing to every authenticated user.
+		// A chart screen launches by id, so the address and client id are of no use to it.
 		assertThat(apps.get(0), not(hasKey("launchUrl")));
 		assertThat(apps.get(0), not(hasKey("clientId")));
 	}
@@ -129,9 +127,8 @@ public class SmartAppsServletTest {
 	}
 
 	/**
-	 * Serves the app list to a caller who is authenticated, and who does or does not hold the privilege
-	 * the refusal report is gated on. The registry itself is left unmocked: what the servlet does with
-	 * a real registry is the thing worth asserting.
+	 * Serves the app list to an authenticated caller who does or does not hold the privilege the
+	 * refusal report is gated on. The registry is left unmocked, since that is what is worth asserting.
 	 */
 	private Map<String, Object> serve(boolean administrator) throws Exception {
 		StringWriter written = new StringWriter();

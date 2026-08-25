@@ -13,6 +13,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TreeMap;
@@ -22,34 +23,8 @@ import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartApp;
 
 /**
- * The SMART apps this deployment permits to be launched, declared in the runtime properties as
- * {@code smart.app.<id>.<field>}: <pre>
- * smart.app.vitals.name          = Vitals Review
- * smart.app.vitals.launchurl     = https://vitals.example.org/launch.html
- * smart.app.vitals.clientid      = vitals-review
- * smart.app.vitals.launchcontext = patient
- * </pre>
- * <p>
- * An EHR launch names an app by id and the launch address is looked up here, so an app this
- * deployment has not declared cannot be launched at all. That is the point: the address used to
- * come from a request parameter, which made the launch endpoint an open redirector for single-use
- * launch handles.
- * <p>
- * Runtime properties rather than a file of its own, because that is where OpenMRS keeps server-side
- * configuration -- the same file {@code InitializationFilter} writes at setup -- and because every
- * deployment already has a way to set them. The reference application's image turns
- * {@code OMRS_EXTRA_SMART_APP_VITALS_LAUNCHURL} into {@code smart.app.vitals.launchurl}, so an app
- * can be registered with environment variables and nothing else. Global properties would have been
- * the other candidate and are deliberately not used: those are editable through the administration
- * UI, and a launch allowlist that the web tier can rewrite gives back much of what looking the
- * address up was for.
- * <p>
- * The field names are lower case and unpunctuated -- {@code launchurl}, not {@code launchUrl} --
- * because that image lower-cases the variables it maps, so a camel-cased key would arrive as
- * something no reader is looking for.
- * <p>
- * Read once, on first use. OpenMRS fills the runtime properties in at startup and never re-reads
- * them, so registering an app takes a restart; nothing this class could do would change that.
+ * The SMART apps this deployment permits to be launched, as {@code smart.app.<id>.<field>}. Field
+ * names are case-insensitive, and are read once, so registering an app needs a restart.
  */
 @Slf4j
 public class SmartAppRegistry {
@@ -63,56 +38,32 @@ public class SmartAppRegistry {
 	/** Why the last load refused what it refused, for whoever has to make the configuration work. */
 	private static volatile List<String> problems = Collections.emptyList();
 
-	/**
-	 * @return the registered apps, by id, as copies. Never null.
-	 *         <p>
-	 *         Copies, because this used to hand out the stored entries themselves: any caller could do
-	 *         {@code getApps().get(0).setLaunchUrl("https://evil/")} and rewrite the deployment's
-	 *         allowlist process-wide. That is a poor property for the type whose whole purpose is
-	 *         deciding where a launch may be sent.
-	 */
+	/** @return copies of the registered apps, so no caller can rewrite the allowlist. Never null. */
 	public static List<SmartApp> getApps() {
-		List<SmartApp> copies = new ArrayList<>();
+		final Map<String, SmartApp> registry = registry();
+		final List<SmartApp> copies = new ArrayList<>(registry.size());
 
-		for (SmartApp app : registry().values()) {
-			copies.add(copyOf(app));
+		for (SmartApp app : registry.values()) {
+			copies.add(new SmartApp(app));
 		}
 
 		return copies;
 	}
 
-	private static SmartApp copyOf(SmartApp app) {
-		SmartApp copy = new SmartApp();
-		copy.setId(app.getId());
-		copy.setName(app.getName());
-		copy.setDescription(app.getDescription());
-		copy.setLaunchUrl(app.getLaunchUrl());
-		copy.setClientId(app.getClientId());
-		copy.setLaunchContext(app.getLaunchContext());
-
-		return copy;
-	}
-
 	/** @return the app with this id as a copy, or null if no such app is registered. */
 	public static SmartApp getApp(String id) {
-		if (id == null || id.trim().isEmpty()) {
+		if (id == null || id.isBlank()) {
 			return null;
 		}
 
 		SmartApp app = registry().get(id.trim());
 
-		return app == null ? null : copyOf(app);
+		return app == null ? null : new SmartApp(app);
 	}
 
 	/**
-	 * @return what the last load refused and why, in the order it was found. Empty when everything
-	 *         declared was registered.
-	 *         <p>
-	 *         Exists because every one of these was previously a line in the server log and nothing
-	 *         else. An implementation registering an app from environment variables could not tell that
-	 *         it had misspelled one: the app simply never appeared, which looks the same as the module
-	 *         ignoring the properties altogether. These are those messages, kept rather than only
-	 *         logged.
+	 * @return what the last load refused and why, so a misspelled property is visible rather than only
+	 *         logged. Empty when everything declared was registered.
 	 */
 	public static List<String> getProblems() {
 		registry();
@@ -132,9 +83,7 @@ public class SmartAppRegistry {
 			synchronized (SmartAppRegistry.class) {
 				if (!loadAttempted) {
 					load();
-					// Only latch on success, as SmartOAuth2ConfigHolder does: this runs before the
-					// runtime properties exist in some startup orders, and latching then would leave
-					// nothing launchable until a restart.
+					// Latched on success only; some startup orders precede the runtime properties.
 					loadAttempted = apps != null;
 				}
 			}
@@ -150,13 +99,12 @@ public class SmartAppRegistry {
 			return;
 		}
 
-		// Sorted by id, so the app list and the log below read in a stable order rather than however
-		// the properties happened to enumerate.
+		// Sorted by id, so the app list and the log below read in a stable order.
 		final Map<String, SmartApp> byId = new TreeMap<>();
 		final List<String> found = new ArrayList<>();
 
 		for (String key : properties.stringPropertyNames()) {
-			final String lower = key.toLowerCase();
+			final String lower = key.toLowerCase(Locale.ROOT);
 
 			if (!lower.startsWith(APP_PROPERTY_PREFIX)) {
 				continue;
@@ -175,7 +123,7 @@ public class SmartAppRegistry {
 			final String field = remainder.substring(dot + 1);
 			final String value = properties.getProperty(key);
 
-			if (value == null || value.trim().isEmpty()) {
+			if (value == null || value.isBlank()) {
 				continue;
 			}
 

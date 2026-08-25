@@ -54,10 +54,7 @@
 		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartEhrLaunchServlet</servlet-class>
 	</servlet>
 
-	<!--
-		The apps a clinician may launch. Read by whatever offers a way to launch them; it never
-		exposes an app's launch URL, which is the registry's business and nobody else's.
-	-->
+	<!-- Available applications -->
 	<servlet>
 		<servlet-name>smartApps</servlet-name>
 		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartAppsServlet</servlet-class>

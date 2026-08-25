@@ -26,11 +26,8 @@ import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartApp;
 
 /**
- * The registry decides where an EHR launch sends a clinician. Before it existed the launch servlet
- * took that address from a request parameter, so anyone who could reach it could have a single-use
- * launch handle delivered to a host of their choosing. What matters here is that an app the
- * deployment has not declared cannot be launched, that a half-declared app is refused rather than
- * half-honoured, and that a deployment can find out why something it declared did not appear.
+ * The registry decides where an EHR launch sends a clinician, so what matters is that an undeclared
+ * app cannot be launched, a half-declared one is refused, and a deployment can find out why.
  */
 class SmartAppRegistryTest {
 
@@ -60,10 +57,7 @@ class SmartAppRegistryTest {
 	@DisplayName("with nothing declared")
 	class Absent {
 
-		/**
-		 * The safe direction. An empty registry means a launch has nowhere to go, which is a refusal; the
-		 * alternative would be falling back to an address the caller supplies.
-		 */
+		/** An empty registry refuses every launch, rather than falling back to a caller's address. */
 		@Test
 		@DisplayName("nothing can be launched")
 		void nothingIsLaunchable() {
@@ -86,6 +80,22 @@ class SmartAppRegistryTest {
 	@Nested
 	@DisplayName("with apps declared")
 	class Present {
+
+		/** Field names are case-insensitive, so a deployment may type either convention. */
+		@Test
+		void acceptsCamelCasedFieldNames() {
+			property("smart.app.camel.launchUrl", "https://camel.example.org/launch");
+			property("smart.app.camel.clientId", "camel-review");
+			property("smart.app.camel.launchContext", "encounter");
+
+			SmartApp app = SmartAppRegistry.getApp("camel");
+
+			assertNotNull(app, "launchUrl should register the app just as launchurl does");
+			assertEquals("https://camel.example.org/launch", app.getLaunchUrl());
+			assertEquals("camel-review", app.getClientId());
+			assertEquals("encounter", app.getLaunchContext());
+			assertTrue(SmartAppRegistry.getProblems().isEmpty(), "a camel-cased field is not a problem to report");
+		}
 
 		@BeforeEach
 		void declareTwoApps() {
@@ -175,12 +185,10 @@ class SmartAppRegistryTest {
 		@DisplayName("a field nobody recognises is refused rather than silently dropped")
 		void unknownFieldIsRefused() {
 			property("smart.app.vitals.launchurl", "https://vitals.example.org/launch");
-			// Deliberately not "patient": that is the model default, so it could not tell an ignored
-			// typo apart from an applied one.
+			// Deliberately not "patient", which is the model default and so proves nothing here.
 			property("smart.app.vitals.launchcontxt", "encounter");
 
-			// The typo is refused and the app is still registered, because refusing it outright would
-			// make one misspelled variable look like a broken deployment.
+			// The typo is refused and the app still registered, so one bad variable is not fatal.
 			assertNotNull(SmartAppRegistry.getApp("vitals"));
 			assertEquals("patient", SmartAppRegistry.getApp("vitals").getLaunchContext());
 		}
@@ -203,8 +211,7 @@ class SmartAppRegistryTest {
 	}
 
 	/**
-	 * A refusal that only reaches the server log is invisible to whoever configured the app: from the
-	 * outside, a rejected declaration and a module that ignores declarations look identical.
+	 * A refusal that only reaches the log is indistinguishable from a module ignoring the properties.
 	 */
 	@Nested
 	@DisplayName("the report of what was refused")

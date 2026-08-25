@@ -29,19 +29,8 @@ import org.openmrs.module.smartonfhir.util.SmartLaunchContextService;
 import org.openmrs.module.smartonfhir.web.util.FhirBaseAddressStrategy;
 
 /**
- * Starts an EHR launch: the clinician is in OpenMRS looking at a patient, and opens a SMART app for
- * them.
- * <p>
- * Answers with the launch notification the specification defines — a redirect to the app's own
- * launch URL carrying {@code iss} and {@code launch}. The {@code launch} value is an opaque,
- * single-use handle bound to the clinician who started the launch; the app hands it back to the
- * authorization server, which redeems it through OpenMRS to learn who and which patient.
- * <p>
- * The app is named by id and its address is read from the registry. It used to be taken from a
- * {@code launchUrl} request parameter, which made this an open redirector: anyone who could reach
- * this servlet could have a launch handle delivered to a host of their choosing.
- * <p>
- * The context is resolved before a handle is issued, so a launch names something that exists.
+ * Starts an EHR launch: a redirect to the app's launch URL with {@code iss} and a single-use
+ * {@code launch} handle. The address comes from the registry, and the context is resolved first.
  */
 @Slf4j
 public class SmartEhrLaunchServlet extends HttpServlet {
@@ -50,6 +39,14 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+		final User user = Context.getAuthenticatedUser();
+
+		// Checked first, so an unauthenticated caller cannot learn which app ids are registered.
+		if (user == null) {
+			resp.sendError(HttpStatus.SC_UNAUTHORIZED, "A launch must be started by an authenticated user");
+			return;
+		}
+
 		final String appId = req.getParameter("appId");
 		final String patientId = req.getParameter("patientId");
 		final String visitId = req.getParameter("visitId");
@@ -77,17 +74,7 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 			return;
 		}
 
-		final User user = Context.getAuthenticatedUser();
-
-		if (user == null) {
-			resp.sendError(HttpStatus.SC_UNAUTHORIZED, "A launch must be started by an authenticated user");
-			return;
-		}
-
-		// A handle is a credential, and one issued for a context that does not exist is redeemable but
-		// names nothing: the app is sent on its way, asks for a patient it was told about, and is told
-		// there is none. The chart only ever names ids it is displaying, so a miss here is a hand-made
-		// URL rather than something a clinician did.
+		// A handle for a context that does not exist is redeemable but names nothing.
 		if (!contextExists(launchContext, patientId, visitId, resp)) {
 			return;
 		}
@@ -99,8 +86,7 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 			return;
 		}
 
-		// The handle is opaque and single-use. It used to be the patient or visit uuid, which both
-		// disclosed the context it stands for and let anyone holding a uuid forge a launch.
+		// Opaque and single-use, so it neither discloses the context nor can be forged from a uuid.
 		final String launchHandle = new SmartLaunchContextService().issue(SmartLaunchContextService.identify(user),
 		    patientId, visitId);
 
@@ -112,10 +98,7 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 		resp.sendRedirect(resp.encodeRedirectURL(target));
 	}
 
-	/**
-	 * Whether the patient or visit this launch is for can be read. Answers the response itself when it
-	 * cannot, so the caller only has to stop.
-	 */
+	/** Whether this launch's context can be read; answers the response itself when it cannot. */
 	private boolean contextExists(String launchContext, String patientId, String visitId, HttpServletResponse resp)
 	        throws IOException {
 		final boolean forEncounter = "encounter".equals(launchContext);
@@ -128,15 +111,13 @@ public class SmartEhrLaunchServlet extends HttpServlet {
 
 			if (context == null) {
 				log.error("Refused a launch: no {} with uuid {}", what, uuid);
-				resp.sendError(HttpStatus.SC_NOT_FOUND, "No such " + what);
+				resp.sendError(HttpStatus.SC_BAD_REQUEST, "No such " + what);
 				return false;
 			}
 		}
 		catch (APIAuthenticationException e) {
-			// Reading the context is a privileged operation, and this is the one path where a clinician
-			// who may start a launch might not be allowed to see what it is for. Refusing is the answer:
-			// a launch grants the app the clinician's own access, which they do not have here.
-			log.error("Refused a launch: not permitted to read the {} {}", what, uuid);
+			// A launch grants the app the clinician's own access, which they do not have here.
+			log.error("Refused a launch: not permitted to read the {} {}", what, uuid, e);
 			resp.sendError(HttpStatus.SC_FORBIDDEN, "Not permitted to launch for this " + what);
 			return false;
 		}
