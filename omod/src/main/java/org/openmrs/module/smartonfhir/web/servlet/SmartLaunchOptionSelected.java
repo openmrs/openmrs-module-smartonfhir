@@ -86,9 +86,7 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 			claims.claim("visit", visitId);
 		}
 
-		// The same claim the EHR launch carries. Without it a standalone launch granted the fhirUser scope
-		// and then issued an id_token without the claim -- which Inferno's STU2.2 suite fails, correctly:
-		// an application that asked who is using it was told nothing.
+		// The same claim the EHR launch carries, so the fhirUser scope is honoured here too.
 		String fhirUser = SmartFhirUser.reference(Context.getAuthenticatedUser());
 
 		if (fhirUser != null) {
