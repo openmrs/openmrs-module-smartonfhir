@@ -14,6 +14,7 @@ import static org.hamcrest.Matchers.containsString;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -21,11 +22,8 @@ import static org.mockito.Mockito.when;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
-import java.util.Properties;
-
 import ca.uhn.fhir.rest.server.IServerAddressStrategy;
 import org.apache.http.HttpStatus;
-import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -41,7 +39,8 @@ import org.openmrs.api.APIAuthenticationException;
 import org.openmrs.api.PatientService;
 import org.openmrs.api.VisitService;
 import org.openmrs.api.context.Context;
-import org.openmrs.module.smartonfhir.util.SmartAppRegistry;
+import org.openmrs.module.smartonfhir.api.SmartAppService;
+import org.openmrs.module.smartonfhir.model.SmartApp;
 
 /**
  * A launch handle is a redeemable credential, so one must not be issued for a context that does not
@@ -69,24 +68,26 @@ public class SmartEhrLaunchServletTest {
 	@Mock
 	private IServerAddressStrategy addressStrategy;
 
-	private Properties previousRuntimeProperties;
+	@Mock
+	private SmartAppService smartAppService;
+
+	private SmartApp patientApp;
+
+	private SmartApp encounterApp;
 
 	@BeforeEach
-	public void declareAnApp() {
-		previousRuntimeProperties = Context.getRuntimeProperties();
+	public void registerTwoApps() {
+		patientApp = new SmartApp();
+		patientApp.setUuid("vitals");
+		patientApp.setName("Vitals Review");
+		patientApp.setLaunchUrl("https://vitals.example.org/launch.html");
+		patientApp.setLaunchContext("patient");
 
-		Properties properties = new Properties();
-		properties.setProperty("smart.app.vitals.launchurl", "https://vitals.example.org/launch.html");
-		properties.setProperty("smart.app.rounds.launchurl", "https://rounds.example.org/launch.html");
-		properties.setProperty("smart.app.rounds.launchcontext", "encounter");
-		Context.setRuntimeProperties(properties);
-		SmartAppRegistry.reset();
-	}
-
-	@AfterEach
-	public void restore() {
-		Context.setRuntimeProperties(previousRuntimeProperties == null ? new Properties() : previousRuntimeProperties);
-		SmartAppRegistry.reset();
+		encounterApp = new SmartApp();
+		encounterApp.setUuid("rounds");
+		encounterApp.setName("Rounds");
+		encounterApp.setLaunchUrl("https://rounds.example.org/launch.html");
+		encounterApp.setLaunchContext("encounter");
 	}
 
 	@Test
@@ -160,6 +161,8 @@ public class SmartEhrLaunchServletTest {
 
 	/** Stubs every parameter the servlet reads, so no test leaves one to strict-stub complaints. */
 	private void parameters(String appId, String patientId, String visitId) {
+		lenient().when(smartAppService.getSmartAppByUuid("vitals")).thenReturn(patientApp);
+		lenient().when(smartAppService.getSmartAppByUuid("rounds")).thenReturn(encounterApp);
 		when(request.getParameter("appId")).thenReturn(appId);
 		when(request.getParameter("patientId")).thenReturn(patientId);
 		when(request.getParameter("visitId")).thenReturn(visitId);
@@ -168,11 +171,9 @@ public class SmartEhrLaunchServletTest {
 	private void serve() throws Exception {
 		User clinician = new User();
 		clinician.setUsername("doctor");
-		// Read before the static is mocked: inside the block this call answers with the mock's default.
-		Properties declared = Context.getRuntimeProperties();
 
 		try (MockedStatic<Context> context = Mockito.mockStatic(Context.class)) {
-			context.when(Context::getRuntimeProperties).thenReturn(declared);
+			context.when(() -> Context.getService(SmartAppService.class)).thenReturn(smartAppService);
 			context.when(Context::getAuthenticatedUser).thenReturn(clinician);
 			context.when(Context::getPatientService).thenReturn(patientService);
 			context.when(Context::getVisitService).thenReturn(visitService);

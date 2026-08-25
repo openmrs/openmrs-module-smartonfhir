@@ -35,6 +35,15 @@
 		<require_module version="${webservicesRestVersion}">org.openmrs.module.webservices.rest</require_module>
 	</require_modules>
 
+	<privilege>
+		<name>Get SMART Apps</name>
+		<description>Able to read the SMART apps this deployment permits to be launched</description>
+	</privilege>
+	<privilege>
+		<name>Manage SMART Apps</name>
+		<description>Able to register, change and retire the SMART apps that may be launched</description>
+	</privilege>
+
 	<servlet>
 		<servlet-name>smartConfig</servlet-name>
 		<servlet-class>org.openmrs.module.smartonfhir.web.servlet.SmartConfigServlet</servlet-class>
@@ -127,10 +136,6 @@
 		<filter-name>smartForwardingFilter</filter-name>
 		<url-pattern>/ws/fhir2</url-pattern>
 		<url-pattern>/ws/fhir2/*</url-pattern>
-		<url-pattern>/ms/smartEhrLaunchServlet</url-pattern>
-		<url-pattern>/ms/smartEhrLaunchServlet/*</url-pattern>
-		<url-pattern>/ms/smartAccessConfirmation</url-pattern>
-		<url-pattern>/ms/smartAccessConfirmation/*</url-pattern>
 		<url-pattern>/smartonfhir/smartAccessConfirmation</url-pattern>
 		<url-pattern>/smartonfhir/smartAccessConfirmation/*</url-pattern>
 	</filter-mapping>
@@ -150,5 +155,7 @@
 		<file>messages_es.properties</file>
 	</messages>
 	<!-- /Internationalization -->
-</module>
 
+	<packagesWithMappedClasses>org.openmrs.module.smartonfhir.model</packagesWithMappedClasses>
+
+</module>
