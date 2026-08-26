@@ -163,7 +163,9 @@ handle delivered to any host named in the URL.
 
 `GET {openmrs}/ws/rest/v1/smartapp` shows what is registered, which is the first place to look if your
 app is missing from the menu. Registering needs the *Manage SMART Apps* privilege, so this is something
-the deployment does rather than you.
+the deployment does rather than you. If that `GET` answers `403`, the account you are testing with lacks
+*Get SMART Apps*, which is also why the launch action can be absent from a chart while apps are in fact
+registered: the frontend hides it rather than showing an action that cannot be used.
 
 The launch is then started by sending the clinician's browser to:
 

@@ -164,6 +164,17 @@ Reading the list needs *Get SMART Apps*; registering, editing and retiring need 
 `GET` with no `includeAll` omits retired apps, so retiring one takes it out of the menu while keeping
 the record.
 
+Neither privilege is granted to anything when the module installs. OpenMRS creates them on startup, but
+who holds them is the deployment's decision, so on a fresh install nobody can read the registry except a
+superuser, and a clinician sees no launch action at all. Grant them in the legacy admin UI under
+**Administration -> Manage Roles**: open the role your clinicians hold and add *Get SMART Apps*. In the
+reference application the clinical roles inherit from *Privilege Level: High*, so granting it there
+reaches all of them at once rather than role by role. A user picks the change up at their next login,
+since roles are read when they authenticate.
+
+Keep *Manage SMART Apps* to whoever administers the deployment. It is what allows an app to be registered
+or pointed at a different launch URL, so a role that holds it can decide where a launch is sent.
+
 The database rather than configuration because a registry that needs a restart to change is a registry
 nobody maintains: runtime properties are read once at startup, and five keys per app does not scale
 past a demonstration.
@@ -223,6 +234,7 @@ POST rather than a silent absence:
 | `400` *is already registered* | Another app holds that name. The message says so when the holder is retired, since a retired app is absent from the list you just read. |
 | `400` *launch context must be* | Something other than `patient` or `encounter`. |
 | `403` on the POST | The user lacks *Manage SMART Apps*. |
+| `403` on the `GET`, or no launch action in the chart | The user lacks *Get SMART Apps*. Grant it to their role under Administration -> Manage Roles; see above. |
 | Registered, but the chart menu is empty | The frontend module has to be in the app shell, which is decided when the frontend image is built. |
 
 ### 4. Register the bearer scheme
