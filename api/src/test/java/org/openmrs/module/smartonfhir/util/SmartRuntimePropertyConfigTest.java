@@ -21,12 +21,14 @@ import java.util.Base64;
 import java.util.Properties;
 
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartOAuth2Config;
 import org.openmrs.util.OpenmrsUtil;
+import org.slf4j.LoggerFactory;
 
 /**
  * Configuring this module through runtime properties, which is how a container does it. The file
@@ -42,6 +44,15 @@ public class SmartRuntimePropertyConfigTest {
 	private String previousAppDataDirectory;
 
 	private Properties previousRuntimeProperties;
+
+	/**
+	 * OpenMRS configures log4j from the application data directory, so initialising it reenters
+	 * OpenmrsUtil. Reaching OpenmrsUtil first leaves its own logger unassigned for that reentrant call.
+	 */
+	@BeforeAll
+	public static void initialiseLoggingBeforeOpenmrsUtil() {
+		LoggerFactory.getLogger(SmartRuntimePropertyConfigTest.class);
+	}
 
 	@BeforeEach
 	public void isolateConfiguration() {
