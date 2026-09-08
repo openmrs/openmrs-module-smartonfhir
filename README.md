@@ -51,7 +51,7 @@ rather than from the access token's claims.
 | | | |
 |---|---|---|
 | OpenMRS platform | 2.8.8 | Tomcat 9, `javax.servlet` |
-| Java runtime | 21 | Bytecode target is 17 (`maven.compiler.release`) |
+| Java runtime | 17 or newer | Bytecode target is 17 (`maven.compiler.release`); also built on 21 |
 | fhir2 | 4.2.0 | `provided`; serves every FHIR resource |
 | authentication | 2.3.0 | `provided`; owns the bearer scheme's registration |
 | An authorization server | — | Must implement the SMART App Launch extensions: `aud`, PKCE S256, and launch context in the token response. Keycloak 26 with the OpenMRS SMART authenticator plugin is what this is built and tested against. |
@@ -294,13 +294,14 @@ should name your issuer, and its `capabilities` should list `launch-standalone`.
 
 ## How a launch works
 
-*Writing an app rather than deploying this module? [INTEGRATING.md](INTEGRATING.md) is the guide for you:
-registering a client, both launch types, and every step through to ending the session — with the failures
-each mistake actually produces.*
+Two servers are involved, and **no step of a launch passes between them directly**. Everything a
+launch carries goes through the clinician's browser as a series of redirects. Keycloak decides who the
+user is and what an app may see; OpenMRS holds the patient data and vouches for who is signed in.
 
-Two servers are involved, and **they never talk to each other**. Everything passes through the
-clinician's browser as a series of redirects. Keycloak decides who the user is and what an app may
-see; OpenMRS holds the patient data and vouches for who is signed in.
+OpenMRS does reach the authorization server on one back channel, outside any launch: it fetches the
+signing keys a bearer token is verified against, and reads the issuer's discovery document to locate
+them unless `smart.jwks.uri` names them outright. A deployment that blocks that outbound connection
+gets a module that refuses every bearer token.
 
 There are two ways an app can start.
 
@@ -630,9 +631,7 @@ that the filter never sits in front of the session endpoint O3 logs in through.
 
 ## Known gaps in this repo
 
-Listed because pretending otherwise is worse. The full measurement is in
-[CONFORMANCE.md](CONFORMANCE.md), section by section against SMART App Launch 2.2.0; what to do about it
-is in [ROADMAP.md](ROADMAP.md).
+Listed because pretending otherwise is worse. Measured against SMART App Launch 2.2.0.
 
 - **Scopes are granted and not enforced, and no `permission-*` capability is advertised because of it.**
   Scopes are requested, granted and returned; nothing refuses a request that exceeds them, so a launched
