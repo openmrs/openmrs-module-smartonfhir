@@ -33,6 +33,6 @@ see https://openmrs.atlassian.net/browse/FM2-
 
   No? -> figure out why and add the fix to your commit. It is your responsibility to make sure your code works.
 
-- [ ] My pull request is **based on the latest changes** of the master branch.
+- [ ] My pull request is **based on the latest changes** of the branch it targets.
 
-  No? Unsure? -> execute command `git pull --rebase upstream master`
+  No? Unsure? -> execute command `git pull --rebase upstream <the branch this pull request targets>`
