@@ -10,10 +10,6 @@ server**. Third-party clinical apps authenticate against an external authorizati
 granted access to one patient's record, and read it through the
 [FHIR2 module](https://github.com/openmrs/openmrs-module-fhir2).
 
-> **Branches.** `master` is the 1.x line, for the RefApp 2.x UI. `2.0.x` targets **O3 + Keycloak 26 +
-> SMART App Launch 2.x** and is where current work happens. The badges above track `master`, so they
-> say nothing about `2.0.x`.
-
 ## What this module does
 
 Four things, and nothing else:
@@ -37,7 +33,7 @@ change here. If you are writing one, the discovery document tells it everything 
 side it has to send `aud`, use PKCE with `S256`, and read launch context from the token response
 rather than from the access token's claims.
 
-### Status on the `2.0.x` line
+### Status
 
 | | |
 |---|---|
