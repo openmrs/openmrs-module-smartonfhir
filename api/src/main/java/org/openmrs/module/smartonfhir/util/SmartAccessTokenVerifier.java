@@ -95,8 +95,8 @@ public class SmartAccessTokenVerifier {
 			// Nearly always a client never granted the scope that carries this claim.
 			log.warn(
 			    "A SMART access token passed verification but carries no '{}' claim, so it names no OpenMRS user. "
-			            + "Grant this client the scope that emits that claim, or configure a claim it does emit.",
-			    config.getUsernameClaim());
+			            + "Grant this client the scope that emits that claim, or set {} to a claim it does emit.",
+			    config.getUsernameClaim(), SmartOAuth2ConfigHolder.USERNAME_CLAIM_PROPERTY);
 			return null;
 		}
 

@@ -87,9 +87,8 @@ public class SmartAccessTokenVerifierHolder {
 		}
 
 		if (jwksUri == null) {
-			log.error("Could not determine the authorization server's JWKS location. Set 'jwks_uri' in "
-			        + "{} to avoid relying on discovery.",
-			    SmartOAuth2ConfigHolder.CONFIG_FILE_NAME);
+			log.error("Could not determine the authorization server's JWKS location; set {} instead.",
+			    SmartOAuth2ConfigHolder.JWKS_URI_PROPERTY);
 			return;
 		}
 
