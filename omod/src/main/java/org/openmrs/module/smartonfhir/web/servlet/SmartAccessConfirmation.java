@@ -19,18 +19,23 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 import com.nimbusds.jwt.JWTClaimsSet;
+import lombok.extern.slf4j.Slf4j;
 import org.openmrs.User;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartSession;
 import org.openmrs.module.smartonfhir.util.SmartLaunchContextService;
 import org.openmrs.module.smartonfhir.util.SmartLaunchTokens;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
+import org.openmrs.module.smartonfhir.web.util.SmartFhirUser;
 
+@Slf4j
 public class SmartAccessConfirmation extends HttpServlet {
 
 	public static final String PATIENT_NAME = "patient";
 
 	public static final String VISIT_NAME = "visit";
+
+	public static final String FHIR_USER_NAME = "fhirUser";
 
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
 		String token = req.getParameter("token");
@@ -65,6 +70,13 @@ public class SmartAccessConfirmation extends HttpServlet {
 		}
 		if (smartSession.getVisitUuid() != null) {
 			claims.claim(VISIT_NAME, smartSession.getVisitUuid());
+		}
+
+		// The id_token's fhirUser claim, which only OpenMRS can resolve to a Practitioner.
+		String fhirUser = SmartFhirUser.reference(user);
+
+		if (fhirUser != null) {
+			claims.claim(FHIR_USER_NAME, fhirUser);
 		}
 
 		String appToken = SmartLaunchTokens.sign(claims.build(), SmartSecretKeyHolder.getSecretKey());
