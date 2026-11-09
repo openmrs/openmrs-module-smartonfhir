@@ -9,6 +9,7 @@
  */
 package org.openmrs.module.smartonfhir.model;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Getter;
@@ -19,6 +20,8 @@ import lombok.Setter;
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class SmartSecretKey {
 
+	// The alias keeps a secret file written for the hyphenated key readable.
+	@JsonAlias("smart-shared-secret-key")
 	@JsonProperty(value = "smart_shared_secret_key", required = true)
 	private String smartSharedSecretKey;
 

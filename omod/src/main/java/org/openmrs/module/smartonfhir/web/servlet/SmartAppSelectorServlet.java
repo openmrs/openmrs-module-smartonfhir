@@ -20,17 +20,17 @@ import org.apache.http.HttpStatus;
 import org.openmrs.module.smartonfhir.util.FhirBaseAddressStrategy;
 
 public class SmartAppSelectorServlet extends HttpServlet {
-	
+
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
 		FhirBaseAddressStrategy fhirBaseAddressStrategy = new FhirBaseAddressStrategy();
 		String url = fhirBaseAddressStrategy.getBaseSmartLaunchAddress(req);
-		
+
 		if (StringUtils.isBlank(url)) {
 			resp.sendError(HttpStatus.SC_BAD_REQUEST, "A url must be provided");
 			return;
 		}
-		
+
 		resp.sendRedirect(resp.encodeRedirectURL(url));
 	}
 }
