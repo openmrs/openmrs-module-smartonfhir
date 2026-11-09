@@ -61,6 +61,17 @@
 
 
 
+	<!-- Ahead of the bearer filter, so its 401s carry the CORS headers a browser app needs to read them. -->
+	<filter>
+		<filter-name>smartCORSFilter</filter-name>
+		<filter-class>org.openmrs.module.smartonfhir.web.filter.CORSFilter</filter-class>
+	</filter>
+	<filter-mapping>
+		<filter-name>smartCORSFilter</filter-name>
+		<url-pattern>/ws/fhir2</url-pattern>
+		<url-pattern>/ws/fhir2/*</url-pattern>
+	</filter-mapping>
+
 	<!--
 		Authenticates FHIR requests carrying a SMART access token. Scoped to the FHIR API:
 		nothing else accepts these tokens, and the filter this replaces was mapped to every
@@ -78,16 +89,6 @@
 		<url-pattern>/ms/fhir2Servlet/*</url-pattern>
 		<url-pattern>/ms/fhir2R3Servlet</url-pattern>
 		<url-pattern>/ms/fhir2R3Servlet/*</url-pattern>
-	</filter-mapping>
-
-	<filter>
-		<filter-name>smartCORSFilter</filter-name>
-		<filter-class>org.openmrs.module.smartonfhir.web.filter.CORSFilter</filter-class>
-	</filter>
-	<filter-mapping>
-		<filter-name>smartCORSFilter</filter-name>
-		<url-pattern>/ws/fhir2</url-pattern>
-		<url-pattern>/ws/fhir2/*</url-pattern>
 	</filter-mapping>
 
 	<!--

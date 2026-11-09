@@ -62,7 +62,7 @@ public class SmartLaunchContextService {
 		String handle = newHandle();
 		cache.put(handle, session);
 
-		log.debug("Issued SMART launch handle {} for user {}", handle, username);
+		log.debug("Issued a SMART launch handle for user {}", username);
 
 		return handle;
 	}

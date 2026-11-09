@@ -105,7 +105,7 @@ public class AuthenticationByPassFilterTest {
 
 	@Test
 	public void doFilter_shouldSignInTheUserASignedLaunchTokenNames() throws Exception {
-		givenUserToken(SmartLaunchTokens.sign(new JWTClaimsSet.Builder().subject("clinician").build(), SECRET));
+		givenUserToken(SmartLaunchTokens.sign(userToken().subject("clinician").build(), SECRET));
 
 		filter.doFilter(request, response, chain);
 
@@ -118,7 +118,7 @@ public class AuthenticationByPassFilterTest {
 
 	@Test
 	public void doFilter_shouldRefuseALaunchTokenThatNamesNoUser() throws Exception {
-		givenUserToken(SmartLaunchTokens.sign(new JWTClaimsSet.Builder().claim("patient", "p").build(), SECRET));
+		givenUserToken(SmartLaunchTokens.sign(userToken().claim("patient", "p").build(), SECRET));
 
 		filter.doFilter(request, response, chain);
 
@@ -129,13 +129,24 @@ public class AuthenticationByPassFilterTest {
 
 	@Test
 	public void doFilter_shouldRefuseAUserTokenSignedWithAnotherSecret() throws Exception {
-		givenUserToken(
-		    SmartLaunchTokens.sign(new JWTClaimsSet.Builder().subject("clinician").build(), SOMEONE_ELSES_SECRET));
+		givenUserToken(SmartLaunchTokens.sign(userToken().subject("clinician").build(), SOMEONE_ELSES_SECRET));
 
 		filter.doFilter(request, response, chain);
 
 		verify(response).sendError(eq(HttpServletResponse.SC_UNAUTHORIZED), anyString());
 		context.verify(() -> Context.authenticate(any(Credentials.class)), never());
+	}
+
+	@Test
+	public void doFilter_shouldRefuseATokenSignedWithTheLaunchSecretThatIsNotAUserToken() throws Exception {
+		givenUserToken(SmartLaunchTokens
+		        .sign(new JWTClaimsSet.Builder().subject("clinician").claim("patient", "patient-uuid").build(), SECRET));
+
+		filter.doFilter(request, response, chain);
+
+		verify(response).sendError(eq(HttpServletResponse.SC_UNAUTHORIZED), anyString());
+		context.verify(() -> Context.authenticate(any(Credentials.class)), never());
+		verify(chain, never()).doFilter(any(), any());
 	}
 
 	@Test
@@ -148,6 +159,10 @@ public class AuthenticationByPassFilterTest {
 		context.verify(Context::logout);
 		verify(session).removeAttribute(AuthenticationByPassFilter.SMART_AUTH_BYPASS);
 		verify(chain).doFilter(request, response);
+	}
+
+	private static JWTClaimsSet.Builder userToken() {
+		return new JWTClaimsSet.Builder().claim("typ", "smart-username-token");
 	}
 
 	/** Wraps the user token in an outer token whose signature the filter does not check. */

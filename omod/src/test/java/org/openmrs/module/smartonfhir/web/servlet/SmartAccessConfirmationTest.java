@@ -115,6 +115,26 @@ public class SmartAccessConfirmationTest {
 	}
 
 	@Test
+	public void doGet_shouldRefuseABackslashBeforeUserinfoThatBrowsersReadAsAPathSeparator() throws Exception {
+		givenLaunch("https://evil.example\\@kc.example.org/realms/openmrs/x?t={APP_TOKEN}");
+
+		new SmartAccessConfirmation().doGet(request, response);
+
+		verify(response).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+		verify(response, never()).sendRedirect(anyString());
+	}
+
+	@Test
+	public void doGet_shouldRefuseATargetCarryingUserinfo() throws Exception {
+		givenLaunch("https://evil.example@kc.example.org/realms/openmrs/x?t={APP_TOKEN}");
+
+		new SmartAccessConfirmation().doGet(request, response);
+
+		verify(response).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+		verify(response, never()).sendRedirect(anyString());
+	}
+
+	@Test
 	public void doGet_shouldRefuseAForeignTargetBeforeAnyoneIsSignedIn() throws Exception {
 		context.when(Context::getAuthenticatedUser).thenReturn(null);
 		when(request.getParameter("token")).thenReturn(encode("https://evil.example/cb?t={APP_TOKEN}"));

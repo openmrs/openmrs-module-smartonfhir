@@ -106,6 +106,11 @@ public class SmartAccessTokenVerifierHolder {
 			return;
 		}
 
+		if (!isHttpUrl(jwksUri.trim())) {
+			log.error("The JWKS location '{}' is not an http or https URL, so keys will not be fetched from it", jwksUri);
+			return;
+		}
+
 		try {
 			JWKSourceBuilder<SecurityContext> keys = JWKSourceBuilder.create(new URL(jwksUri.trim())).retrying(true);
 

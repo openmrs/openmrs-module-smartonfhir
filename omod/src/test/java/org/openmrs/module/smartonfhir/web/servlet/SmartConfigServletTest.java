@@ -10,6 +10,7 @@
 package org.openmrs.module.smartonfhir.web.servlet;
 
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.hasItem;
 import static org.hamcrest.Matchers.hasKey;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.not;
@@ -25,6 +26,7 @@ import java.io.StringWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -91,6 +93,16 @@ public class SmartConfigServletTest {
 
 		assertThat((String) document.get("introspection_endpoint"),
 		    is("https://kc.example.org/realms/openmrs/protocol/openid-connect/token/introspect"));
+	}
+
+	@Test
+	public void doGet_shouldNotAdvertisePatientConfinementOrAPickerItDoesNotHave() throws Exception {
+		List<String> capabilities = (List<String>) serve("").get("capabilities");
+
+		assertThat(capabilities, hasItem("launch-ehr"));
+		assertThat(capabilities, not(hasItem("permission-patient")));
+		assertThat(capabilities, not(hasItem("permission-user")));
+		assertThat(capabilities, not(hasItem("context-standalone-patient")));
 	}
 
 	@Test

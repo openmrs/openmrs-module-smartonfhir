@@ -28,12 +28,11 @@ public class SmartConfigServlet extends HttpServlet {
 	private static final ObjectMapper objectMapper = new ObjectMapper();
 
 	/**
-	 * Only what this server can actually do. {@code permission-v2} is absent because granular scopes
-	 * are not enforced, and {@code context-standalone-encounter} has no visit picker.
+	 * The {@code permission-*} entries are absent because granted scopes are not enforced, and the
+	 * standalone contexts because there is no patient or visit picker.
 	 */
 	private static final String[] CAPABILITIES = new String[] { "launch-ehr", "launch-standalone", "client-public",
-	        "client-confidential-symmetric", "context-ehr-patient", "context-ehr-encounter", "context-standalone-patient",
-	        "permission-patient", "permission-user", "sso-openid-connect" };
+	        "client-confidential-symmetric", "context-ehr-patient", "context-ehr-encounter", "sso-openid-connect" };
 
 	private SmartConformance smartConformance;
 

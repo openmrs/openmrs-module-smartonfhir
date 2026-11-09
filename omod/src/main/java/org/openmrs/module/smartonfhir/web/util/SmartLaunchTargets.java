@@ -68,13 +68,13 @@ public class SmartLaunchTargets {
 	}
 
 	/**
-	 * Whether a launch target belongs to the configured authorization server, compared on origin so a
-	 * host merely starting with the issuer's cannot pass.
+	 * Whether a launch target belongs to the configured authorization server, compared on origin. A
+	 * backslash or userinfo is refused, since browsers can read the host differently from Spring.
 	 */
 	public static boolean isAuthorizationServerAddress(String target) {
 		final SmartOAuth2Config config = SmartOAuth2ConfigHolder.getConfig();
 
-		if (target == null || config == null || config.getIssuer() == null) {
+		if (target == null || target.indexOf('\\') >= 0 || config == null || config.getIssuer() == null) {
 			return false;
 		}
 
@@ -83,9 +83,9 @@ public class SmartLaunchTargets {
 			UriComponents candidate = UriComponentsBuilder.fromUriString(target).build();
 			UriComponents issuer = UriComponentsBuilder.fromUriString(config.getIssuer()).build();
 
-			return candidate.getScheme() != null && candidate.getScheme().equalsIgnoreCase(issuer.getScheme())
-			        && candidate.getHost() != null && candidate.getHost().equalsIgnoreCase(issuer.getHost())
-			        && candidate.getPort() == issuer.getPort();
+			return candidate.getUserInfo() == null && candidate.getScheme() != null
+			        && candidate.getScheme().equalsIgnoreCase(issuer.getScheme()) && candidate.getHost() != null
+			        && candidate.getHost().equalsIgnoreCase(issuer.getHost()) && candidate.getPort() == issuer.getPort();
 		}
 		catch (Exception e) {
 			log.error("A launch target could not be parsed", e);

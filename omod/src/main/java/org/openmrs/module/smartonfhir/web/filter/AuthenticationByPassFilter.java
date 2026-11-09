@@ -41,6 +41,9 @@ public class AuthenticationByPassFilter implements Filter {
 
 	private static final String VALID_URLS_PARAM = "validUrls";
 
+	/** The {@code typ} Keycloak's launch authenticator gives the user token it signs. */
+	private static final String USER_TOKEN_TYPE = "smart-username-token";
+
 	private List<String> validUrls = new ArrayList<>(0);
 
 	@Override
@@ -130,6 +133,14 @@ public class AuthenticationByPassFilter implements Filter {
 					    SmartSecretKeyHolder.getSecretKey());
 
 					if (userClaims == null) {
+						response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+						return;
+					}
+
+					// Other tokens signed with the launch secret, such as the app token, must not become a login.
+					if (!USER_TOKEN_TYPE.equals(userClaims.getClaim("typ"))) {
+						log.warn("A launch token's user entry has type '{}', not '{}'; not authenticating it",
+						    userClaims.getClaim("typ"), USER_TOKEN_TYPE);
 						response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
 						return;
 					}

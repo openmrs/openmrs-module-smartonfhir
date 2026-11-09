@@ -71,6 +71,14 @@ class SmartAccessTokenVerifierHolderTest {
 		assertNotNull(SmartAccessTokenVerifierHolder.getVerifier());
 	}
 
+	@Test
+	void shouldRefuseAJwksLocationThatIsNotHttp() throws Exception {
+		writeConfig("{\"issuer\":\"not-a-url\",\"audience\":\"https://openmrs.example.org\","
+		        + "\"jwks_uri\":\"file:///etc/certs.json\"}");
+
+		assertNull(SmartAccessTokenVerifierHolder.getVerifier());
+	}
+
 	private void writeConfig(String json) throws Exception {
 		File config = appData.resolve("config").toFile();
 		assertTrue(config.mkdirs() || config.isDirectory());
