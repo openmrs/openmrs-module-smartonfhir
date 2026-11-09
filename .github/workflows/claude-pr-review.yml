@@ -1,0 +1,22 @@
+# On-demand review by Claude, invoked by commenting "@claude review" on a pull
+# request. The org's shared workflow gates it on /dev/3-or-above membership and
+# never runs on its own.
+#
+# It triggers on issue_comment, which carries no base-branch filter -- so unlike
+# the build workflow it reaches every layer of a stacked pull request, whatever
+# each layer is based on.
+name: Claude PR Review
+
+on:
+  issue_comment:
+    types: [ created ]
+
+jobs:
+  review:
+    uses: openmrs/openmrs-contrib-gha-workflows/.github/workflows/claude-pr-review.yml@main
+    # the org-level ANTHROPIC_API_KEY and DEV_STAGE_READ_TOKEN
+    secrets: inherit
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write

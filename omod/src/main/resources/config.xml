@@ -29,16 +29,8 @@
 
 	<require_version>${openmrsPlatformVersion}</require_version>
 
-	<aware_of_modules>
-		<aware_of_module>org.openmrs.module.legacyui</aware_of_module>
-	</aware_of_modules>
-
 	<require_modules>
-		<require_module>org.openmrs.module.fhir2</require_module>
-		<require_module>org.openmrs.module.uiframework</require_module>
-		<require_module>org.openmrs.module.coreapps</require_module>
-		<require_module>org.openmrs.module.appframework</require_module>
-		<require_module>org.openmrs.module.emrapi</require_module>
+		<require_module version="${fhir2Version}">org.openmrs.module.fhir2</require_module>
 	</require_modules>
 
 	<servlet>
@@ -147,19 +139,5 @@
 	</messages>
 	<!-- /Internationalization -->
 
-	<privilege>
-		<name>App: smartonfhir.smartapps</name>
-		<description>Able to access smart apps</description>
-	</privilege>
-
-	<privilege>
-		<name>App: smartonfhir.demoappHomepageLink</name>
-		<description>Demo smart app</description>
-	</privilege>
-
-	<privilege>
-		<name>App: smartonfhir:smartAppPatientChartLaunch</name>
-		<description>Demo SMART app launch inside patient chart</description>
-	</privilege>
 </module>
 

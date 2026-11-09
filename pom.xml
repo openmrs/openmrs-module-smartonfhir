@@ -4,14 +4,14 @@
 
 	<groupId>org.openmrs.module</groupId>
 	<artifactId>smartonfhir</artifactId>
-	<version>1.0.0-SNAPSHOT</version>
+	<version>2.0.0-SNAPSHOT</version>
 	<packaging>pom</packaging>
 	<name>SMART on FHIR</name>
 	<description>Implementation of SMART-on-FHIR for the FHIR2 module</description>
 
 	<issueManagement>
 		<system>JIRA</system>
-		<url>http://issues.openmrs.org/</url>
+		<url>https://openmrs.atlassian.net/jira/software/c/projects/FM2/issues</url>
 	</issueManagement>
 
 	<licenses>
@@ -29,9 +29,9 @@
 	<url>https://wiki.openmrs.org/display/projects/OpenMRS+FHIR+Module</url>
 
 	<scm>
-		<connection>scm:git:git@github.com:openmrs/openmrs-module-fhir2.git</connection>
-		<developerConnection>scm:git:git@github.com:openmrs/openmrs-module-fhir2.git</developerConnection>
-		<url>https://github.com/openmrs/openmrs-module-fhir2/</url>
+		<connection>scm:git:git@github.com:openmrs/openmrs-module-smartonfhir.git</connection>
+		<developerConnection>scm:git:git@github.com:openmrs/openmrs-module-smartonfhir.git</developerConnection>
+		<url>https://github.com/openmrs/openmrs-module-smartonfhir/</url>
 	</scm>
 
 	<modules>
@@ -98,6 +98,16 @@
 						<groupId>javax.servlet</groupId>
 						<artifactId>jsp-api</artifactId>
 					</exclusion>
+					<!-- jstl-api drags in servlet-api 2.3, which shadows javax.servlet-api
+					     4.0.1 and hides everything added since Servlet 2.3 -->
+					<exclusion>
+						<groupId>javax.servlet.jsp.jstl</groupId>
+						<artifactId>javax.servlet.jsp.jstl-api</artifactId>
+					</exclusion>
+					<exclusion>
+						<groupId>javax.servlet</groupId>
+						<artifactId>servlet-api</artifactId>
+					</exclusion>
 				</exclusions>
 			</dependency>
 			<dependency>
@@ -122,37 +132,22 @@
 						<groupId>javax.servlet</groupId>
 						<artifactId>jsp-api</artifactId>
 					</exclusion>
-				</exclusions>
-			</dependency>
-			<dependency>
-				<groupId>org.openmrs.test</groupId>
-				<artifactId>openmrs-test</artifactId>
-				<version>${openmrsPlatformVersion}</version>
-				<type>pom</type>
-				<scope>test</scope>
-				<exclusions>
+					<!-- jstl-api drags in servlet-api 2.3, which shadows javax.servlet-api
+					     4.0.1 and hides everything added since Servlet 2.3 -->
 					<exclusion>
-						<groupId>org.mockito</groupId>
-						<artifactId>mockito-all</artifactId>
+						<groupId>javax.servlet.jsp.jstl</groupId>
+						<artifactId>javax.servlet.jsp.jstl-api</artifactId>
 					</exclusion>
 					<exclusion>
-						<groupId>org.powermock</groupId>
-						<artifactId>powermock-module-junit4</artifactId>
-					</exclusion>
-					<exclusion>
-						<groupId>org.powermock</groupId>
-						<artifactId>powermock-api-mockito</artifactId>
-					</exclusion>
-					<exclusion>
-						<groupId>org.hamcrest</groupId>
-						<artifactId>hamcrest-all</artifactId>
+						<groupId>javax.servlet</groupId>
+						<artifactId>servlet-api</artifactId>
 					</exclusion>
 				</exclusions>
 			</dependency>
 			<dependency>
 				<groupId>org.openmrs.module</groupId>
 				<artifactId>fhir2-api</artifactId>
-				<version>1.0.0-SNAPSHOT</version>
+				<version>${fhir2Version}</version>
 				<scope>provided</scope>
 			</dependency>
 			<dependency>
@@ -192,21 +187,9 @@
 				<scope>provided</scope>
 			</dependency>
 			<dependency>
-				<groupId>junit</groupId>
-				<artifactId>junit</artifactId>
-				<version>4.13.1</version>
-				<scope>test</scope>
-			</dependency>
-			<dependency>
 				<groupId>org.mockito</groupId>
 				<artifactId>mockito-core</artifactId>
-				<version>4.2.0</version>
-				<scope>test</scope>
-			</dependency>
-			<dependency>
-				<groupId>org.mockito</groupId>
-				<artifactId>mockito-inline</artifactId>
-				<version>4.2.0</version>
+				<version>${mockitoVersion}</version>
 				<scope>test</scope>
 			</dependency>
 			<dependency>
@@ -221,32 +204,7 @@
 				<version>2.2</version>
 				<scope>test</scope>
 			</dependency>
-			<dependency>
-				<groupId>org.powermock</groupId>
-				<artifactId>powermock-module-junit4</artifactId>
-				<version>2.0.4</version>
-				<scope>test</scope>
-			</dependency>
-			<dependency>
-				<groupId>org.powermock</groupId>
-				<artifactId>powermock-api-mockito2</artifactId>
-				<version>2.0.4</version>
-				<scope>test</scope>
-			</dependency>
-			<dependency>
-				<groupId>org.exparity</groupId>
-				<artifactId>hamcrest-date</artifactId>
-				<version>2.0.7</version>
-				<scope>test</scope>
-			</dependency>
 
-			<dependency>
-				<groupId>org.openmrs.module</groupId>
-				<artifactId>uiframework-api</artifactId>
-				<version>${uiframeworkVersion}</version>
-				<type>jar</type>
-				<scope>provided</scope>
-			</dependency>
 			<dependency>
 				<groupId>com.github.ben-manes.caffeine</groupId>
 				<artifactId>caffeine</artifactId>
@@ -256,14 +214,21 @@
 			<dependency>
 				<groupId>org.openmrs.module</groupId>
 				<artifactId>fhir2-omod</artifactId>
-				<version>1.2.1</version>
+				<version>${fhir2Version}</version>
 				<scope>provided</scope>
 			</dependency>
 			<dependency>
-				<groupId>org.openmrs.module</groupId>
-				<artifactId>emrapi-api</artifactId>
-				<version>${emrapiVersion}</version>
-				<scope>provided</scope>
+				<groupId>org.junit</groupId>
+				<artifactId>junit-bom</artifactId>
+				<version>${junitVersion}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.mockito</groupId>
+				<artifactId>mockito-junit-jupiter</artifactId>
+				<version>${mockitoVersion}</version>
+				<scope>test</scope>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -281,17 +246,6 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
-			<groupId>org.openmrs.test</groupId>
-			<artifactId>openmrs-test</artifactId>
-			<type>pom</type>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>junit</groupId>
-			<artifactId>junit</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
 			<groupId>org.hamcrest</groupId>
 			<artifactId>hamcrest-core</artifactId>
 			<scope>test</scope>
@@ -302,39 +256,22 @@
 			<scope>test</scope>
 		</dependency>
 		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
 			<groupId>org.mockito</groupId>
 			<artifactId>mockito-core</artifactId>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
 			<groupId>org.mockito</groupId>
-			<artifactId>mockito-inline</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.powermock</groupId>
-			<artifactId>powermock-module-junit4</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.powermock</groupId>
-			<artifactId>powermock-api-mockito2</artifactId>
+			<artifactId>mockito-junit-jupiter</artifactId>
 			<scope>test</scope>
 		</dependency>
 
-		<dependency>
-			<groupId>org.openmrs.module</groupId>
-			<artifactId>appframework-api</artifactId>
-			<version>${appframeworkVersion}</version>
-			<scope>provided</scope>
-		</dependency>
 
-		<dependency>
-			<groupId>org.openmrs.module</groupId>
-			<artifactId>coreapps-omod</artifactId>
-			<version>1.28.0</version>
-			<scope>provided</scope>
-		</dependency>
 	</dependencies>
 
 	<build>
@@ -404,8 +341,19 @@
 		<pluginManagement>
 			<plugins>
 				<plugin>
+					<groupId>org.projectlombok</groupId>
+					<artifactId>lombok-maven-plugin</artifactId>
+					<version>${lombokMavenPluginVersion}</version>
+				</plugin>
+				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
 					<artifactId>maven-compiler-plugin</artifactId>
+				</plugin>
+				<plugin>
+					<groupId>org.apache.maven.plugins</groupId>
+					<artifactId>maven-surefire-plugin</artifactId>
+					<!-- the Maven default predates JUnit 5 engine discovery -->
+					<version>3.5.2</version>
 				</plugin>
 				<plugin>
 					<groupId>org.apache.maven.plugins</groupId>
@@ -567,14 +515,10 @@
 					</executions>
 				</plugin>
 				<plugin>
-					<groupId>org.projectlombok</groupId>
-					<artifactId>lombok-maven-plugin</artifactId>
-					<version>${lombokVersion}.0</version>
-				</plugin>
-				<plugin>
 					<groupId>org.jacoco</groupId>
 					<artifactId>jacoco-maven-plugin</artifactId>
-					<version>0.8.2</version>
+					<!-- earlier versions cannot read Java 17 bytecode -->
+					<version>0.8.12</version>
 					<executions>
 						<execution>
 							<goals>
@@ -593,7 +537,8 @@
 				<plugin>
 					<groupId>net.revelc.code.formatter</groupId>
 					<artifactId>formatter-maven-plugin</artifactId>
-					<version>2.14.0</version>
+					<!-- 2.14.0 predates Java 17 source support -->
+					<version>2.24.1</version>
 					<configuration>
 						<lineEnding>LF</lineEnding>
 						<configFile>eclipse/OpenMRSFormatter.xml</configFile>
@@ -616,7 +561,8 @@
 				<plugin>
 					<groupId>net.revelc.code</groupId>
 					<artifactId>impsort-maven-plugin</artifactId>
-					<version>1.5.0</version>
+					<!-- 1.5.0 bundles a javaparser with no JAVA_17 language level -->
+					<version>1.12.0</version>
 					<configuration>
 						<groups>javax, java, *</groups>
 						<removeUnused>true</removeUnused>
@@ -634,18 +580,19 @@
 	</build>
 
 	<properties>
-		<maven.compiler.source>1.8</maven.compiler.source>
-		<maven.compiler.target>1.8</maven.compiler.target>
+		<maven.compiler.release>17</maven.compiler.release>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.build.outputEncoding>UTF-8</project.build.outputEncoding>
-		<lombokVersion>1.18.18</lombokVersion>
-		<openmrsPlatformVersion>2.3.0</openmrsPlatformVersion>
-		<openmrsPlatformToolsVersion>2.4.0</openmrsPlatformToolsVersion>
+		<!-- 1.18.30 is the first release that can run on JDK 21 -->
+		<lombokVersion>1.18.36</lombokVersion>
+		<!-- the delombok plugin is versioned separately; 1.18.20.0 is its last release -->
+		<lombokMavenPluginVersion>1.18.20.0</lombokMavenPluginVersion>
+		<openmrsPlatformVersion>2.8.8</openmrsPlatformVersion>
+		<openmrsPlatformToolsVersion>2.8.8</openmrsPlatformToolsVersion>
 		<keycloakVersion>14.0.0</keycloakVersion>
-		<uiframeworkVersion>3.15.0</uiframeworkVersion>
-		<appframeworkVersion>2.9</appframeworkVersion>
-		<appuiVersion>1.7</appuiVersion>
-		<caffeineVersion>2.8.2</caffeineVersion>
-		<emrapiVersion>1.29.0</emrapiVersion>
+		<fhir2Version>4.2.0</fhir2Version>
+		<junitVersion>5.11.4</junitVersion>
+		<mockitoVersion>5.14.2</mockitoVersion>
+		<caffeineVersion>2.9.3</caffeineVersion>
 	</properties>
 </project>
