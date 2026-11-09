@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    This Source Code Form is subject to the terms of the Mozilla Public License,
+    v. 2.0. If a copy of the MPL was not distributed with this file, You can
+    obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+    the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
+
+    Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+    graphic logo is a trademark of OpenMRS Inc.
+-->
+<!--
+	One registered app, so the read paths have something to find and the duplicate-name rule has
+	something to collide with.
+-->
+<dataset>
+	<smartonfhir_app smartonfhir_app_id="1" name="Vitals Review"
+		description="Trends and reference-range flagging"
+		launch_url="https://vitals.example.org/launch.html" client_id="vitals-review"
+		launch_context="patient" creator="1" date_created="2026-01-01 00:00:00" retired="false"
+		uuid="e3a1c0de-0000-4000-8000-000000000001"/>
+	<smartonfhir_app smartonfhir_app_id="2" name="Retired App"
+		launch_url="https://retired.example.org/launch.html" launch_context="patient"
+		creator="1" date_created="2026-01-01 00:00:00" retired="true" retire_reason="replaced"
+		uuid="e3a1c0de-0000-4000-8000-000000000002"/>
+</dataset>
