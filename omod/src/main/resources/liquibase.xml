@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    This Source Code Form is subject to the terms of the Mozilla Public License,
+    v. 2.0. If a copy of the MPL was not distributed with this file, You can
+    obtain one at http://mozilla.org/MPL/2.0/. OpenMRS is also distributed under
+    the terms of the Healthcare Disclaimer located at http://openmrs.org/license.
+
+    Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
+    graphic logo is a trademark of OpenMRS Inc.
+-->
+<databaseChangeLog xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+		http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-3.1.xsd">
+
+	<changeSet id="smartonfhir-app-1" author="mherman22">
+		<comment>The SMART apps a launch may be sent to</comment>
+		<createTable tableName="smartonfhir_app">
+			<column name="smartonfhir_app_id" type="int" autoIncrement="true">
+				<constraints primaryKey="true" nullable="false"/>
+			</column>
+			<column name="name" type="varchar(255)">
+				<constraints nullable="false" unique="true"/>
+			</column>
+			<column name="description" type="varchar(1024)"/>
+			<column name="launch_url" type="varchar(1024)">
+				<constraints nullable="false"/>
+			</column>
+			<column name="client_id" type="varchar(255)"/>
+			<column name="launch_context" type="varchar(50)" defaultValue="patient">
+				<constraints nullable="false"/>
+			</column>
+			<column name="creator" type="int">
+				<constraints nullable="false"/>
+			</column>
+			<column name="date_created" type="datetime">
+				<constraints nullable="false"/>
+			</column>
+			<column name="changed_by" type="int"/>
+			<column name="date_changed" type="datetime"/>
+			<column name="retired" type="boolean" defaultValueBoolean="false">
+				<constraints nullable="false"/>
+			</column>
+			<column name="retired_by" type="int"/>
+			<column name="date_retired" type="datetime"/>
+			<column name="retire_reason" type="varchar(255)"/>
+			<column name="uuid" type="char(38)">
+				<constraints nullable="false" unique="true"/>
+			</column>
+		</createTable>
+		<addForeignKeyConstraint constraintName="smartonfhir_app_creator"
+			baseTableName="smartonfhir_app" baseColumnNames="creator"
+			referencedTableName="users" referencedColumnNames="user_id"/>
+		<addForeignKeyConstraint constraintName="smartonfhir_app_changed_by"
+			baseTableName="smartonfhir_app" baseColumnNames="changed_by"
+			referencedTableName="users" referencedColumnNames="user_id"/>
+		<addForeignKeyConstraint constraintName="smartonfhir_app_retired_by"
+			baseTableName="smartonfhir_app" baseColumnNames="retired_by"
+			referencedTableName="users" referencedColumnNames="user_id"/>
+	</changeSet>
+</databaseChangeLog>
