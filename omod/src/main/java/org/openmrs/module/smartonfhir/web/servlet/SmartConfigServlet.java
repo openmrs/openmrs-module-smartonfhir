@@ -17,36 +17,89 @@ import java.io.IOException;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.openmrs.module.smartonfhir.util.KeycloakConfigHolder;
-import org.openmrs.module.smartonfhir.web.KeycloakConfig;
-import org.openmrs.module.smartonfhir.web.SmartConformance;
+import org.openmrs.module.smartonfhir.model.SmartConformance;
+import org.openmrs.module.smartonfhir.model.SmartOAuth2Config;
+import org.openmrs.module.smartonfhir.util.SmartAccessTokenVerifierHolder;
+import org.openmrs.module.smartonfhir.util.SmartOAuth2ConfigHolder;
 
 @Slf4j
 public class SmartConfigServlet extends HttpServlet {
-	
+
 	private static final ObjectMapper objectMapper = new ObjectMapper();
-	
+
+	/**
+	 * Only what this server can actually do. {@code permission-v2} is absent because granular scopes
+	 * are not enforced, and {@code context-standalone-encounter} has no visit picker.
+	 */
+	private static final String[] CAPABILITIES = new String[] { "launch-ehr", "launch-standalone", "client-public",
+	        "client-confidential-symmetric", "context-ehr-patient", "context-ehr-encounter", "context-standalone-patient",
+	        "permission-patient", "permission-user", "sso-openid-connect" };
+
 	private SmartConformance smartConformance;
-	
+
 	@Override
 	public void init() {
-		final KeycloakConfig keycloakConfig = KeycloakConfigHolder.getKeycloakConfig();
-		
-		smartConformance = new SmartConformance();
-		smartConformance.setAuthorizationEndpoint(
-		    keycloakConfig.getAuthServerUrl() + "realms/" + keycloakConfig.getRealm() + "/protocol/openid-connect/auth");
-		smartConformance.setTokenEndpoint(
-		    keycloakConfig.getAuthServerUrl() + "realms/" + keycloakConfig.getRealm() + "/protocol/openid-connect/token");
-		smartConformance.setTokenEndpointAuthMethodsSupported(new String[] { "client_secret_basic" });
-		smartConformance.setScopesSupported(new String[] { "openid", "profile", "launch", "launch/patient", "patient/*.*" });
-		smartConformance.setResponseTypesSupported(new String[] { "code", "code id_token", "id_token", "refresh_token" });
-		smartConformance.setIntrospectionEndpoint(keycloakConfig.getAuthServerUrl() + "realms/" + keycloakConfig.getRealm()
-		        + "/protocol/openid-connect/token/introspect");
-		smartConformance.setCapabilities(new String[] { "launch-standalone", "launch-ehr", "client-public",
-		        "client-confidential-symmetric", "context-ehr-patient", "sso-openid-connect" });
+		final SmartOAuth2Config config = SmartOAuth2ConfigHolder.getConfig();
+
+		if (config == null) {
+			log.error("SMART on FHIR is not configured; the discovery document will not be served");
+			return;
+		}
+
+		smartConformance = buildConformance(config);
 	}
-	
+
+	/**
+	 * Builds the SMART discovery document from the configured authorization server. Endpoints left
+	 * unstated are derived from the issuer using Keycloak's conventional paths.
+	 */
+	private SmartConformance buildConformance(SmartOAuth2Config config) {
+		// Only the final slash is ever there to strip.
+		final String configured = config.getIssuer();
+		final String issuer = configured.endsWith("/") ? configured.substring(0, configured.length() - 1) : configured;
+
+		SmartConformance conformance = new SmartConformance();
+		conformance.setAuthorizationEndpoint(
+		    orDerived(config.getAuthorizationEndpoint(), issuer, "/protocol/openid-connect/auth"));
+		conformance.setTokenEndpoint(orDerived(config.getTokenEndpoint(), issuer, "/protocol/openid-connect/token"));
+		// Stated only, never derived: introspection needs a confidential client.
+		conformance.setIntrospectionEndpoint(config.getIntrospectionEndpoint());
+		conformance
+		        .setRevocationEndpoint(orDerived(config.getRevocationEndpoint(), issuer, "/protocol/openid-connect/revoke"));
+		// Without this, logging out of OpenMRS leaves the authorization server's session intact.
+		conformance
+		        .setEndSessionEndpoint(orDerived(config.getEndSessionEndpoint(), issuer, "/protocol/openid-connect/logout"));
+		conformance.setRegistrationEndpoint(config.getRegistrationEndpoint());
+		conformance.setTokenEndpointAuthMethodsSupported(new String[] { "client_secret_basic", "private_key_jwt" });
+		conformance.setIssuer(issuer);
+		// What an app is told, which need not be where we fetch keys from.
+		conformance.setJwksUri(config.getAdvertisedJwksUri() != null && !config.getAdvertisedJwksUri().isBlank()
+		        ? config.getAdvertisedJwksUri().trim()
+		        : SmartAccessTokenVerifierHolder.getResolvedJwksUri());
+		conformance.setGrantTypesSupported(new String[] { "authorization_code", "refresh_token" });
+		// SMART App Launch 2.x mandates S256 and forbids plain, so only S256 is offered.
+		conformance.setCodeChallengeMethodsSupported(new String[] { "S256" });
+		// Only scopes the authorization server will grant; Keycloak refuses the wildcard forms.
+		conformance.setScopesSupported(new String[] { "openid", "profile", "fhirUser", "launch", "launch/patient",
+		        "launch/encounter", "patient/Patient.rs", "patient/Observation.rs", "patient/Condition.rs",
+		        "patient/Encounter.rs", "offline_access" });
+		conformance.setResponseTypesSupported(new String[] { "code" });
+		conformance.setCapabilities(CAPABILITIES);
+
+		return conformance;
+	}
+
+	private String orDerived(String configured, String issuer, String path) {
+		return configured != null && !configured.isBlank() ? configured : issuer + path;
+	}
+
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
+		if (smartConformance == null) {
+			// Refuse rather than advertise endpoints nobody configured.
+			res.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "SMART on FHIR is not configured");
+			return;
+		}
+
 		res.setContentType("application/json");
 		res.setCharacterEncoding("UTF-8");
 		res.setStatus(200);
