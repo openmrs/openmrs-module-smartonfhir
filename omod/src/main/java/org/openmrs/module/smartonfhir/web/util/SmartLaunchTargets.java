@@ -14,6 +14,9 @@ import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 
 import lombok.extern.slf4j.Slf4j;
+import org.openmrs.module.smartonfhir.model.SmartOAuth2Config;
+import org.openmrs.module.smartonfhir.util.SmartOAuth2ConfigHolder;
+import org.springframework.web.util.UriComponents;
 import org.springframework.web.util.UriComponentsBuilder;
 
 /** How the launch target in a {@code token} parameter is read, in one place so readers agree. */
@@ -61,6 +64,32 @@ public class SmartLaunchTargets {
 		catch (Exception e) {
 			log.error("Could not read '{}' from a launch target", name, e);
 			return null;
+		}
+	}
+
+	/**
+	 * Whether a launch target belongs to the configured authorization server, compared on origin so a
+	 * host merely starting with the issuer's cannot pass.
+	 */
+	public static boolean isAuthorizationServerAddress(String target) {
+		final SmartOAuth2Config config = SmartOAuth2ConfigHolder.getConfig();
+
+		if (target == null || config == null || config.getIssuer() == null) {
+			return false;
+		}
+
+		// UriComponentsBuilder rather than java.net.URI, which rejects the {APP_TOKEN} placeholder.
+		try {
+			UriComponents candidate = UriComponentsBuilder.fromUriString(target).build();
+			UriComponents issuer = UriComponentsBuilder.fromUriString(config.getIssuer()).build();
+
+			return candidate.getScheme() != null && candidate.getScheme().equalsIgnoreCase(issuer.getScheme())
+			        && candidate.getHost() != null && candidate.getHost().equalsIgnoreCase(issuer.getHost())
+			        && candidate.getPort() == issuer.getPort();
+		}
+		catch (Exception e) {
+			log.error("A launch target could not be parsed", e);
+			return false;
 		}
 	}
 

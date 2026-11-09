@@ -72,10 +72,10 @@ public class SmartConfigServlet extends HttpServlet {
 		conformance.setRegistrationEndpoint(config.getRegistrationEndpoint());
 		conformance.setTokenEndpointAuthMethodsSupported(new String[] { "client_secret_basic", "private_key_jwt" });
 		conformance.setIssuer(issuer);
-		// What an app is told, which need not be where we fetch keys from.
-		conformance.setJwksUri(config.getAdvertisedJwksUri() != null && !config.getAdvertisedJwksUri().isBlank()
-		        ? config.getAdvertisedJwksUri().trim()
-		        : SmartAccessTokenVerifierHolder.getResolvedJwksUri());
+		// What an app is told need not be where we fetch keys from; doGet resolves it when unstated.
+		if (config.getAdvertisedJwksUri() != null && !config.getAdvertisedJwksUri().isBlank()) {
+			conformance.setJwksUri(config.getAdvertisedJwksUri().trim());
+		}
 		conformance.setGrantTypesSupported(new String[] { "authorization_code", "refresh_token" });
 		// SMART App Launch 2.x mandates S256 and forbids plain, so only S256 is offered.
 		conformance.setCodeChallengeMethodsSupported(new String[] { "S256" });
@@ -98,6 +98,11 @@ public class SmartConfigServlet extends HttpServlet {
 			// Refuse rather than advertise endpoints nobody configured.
 			res.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "SMART on FHIR is not configured");
 			return;
+		}
+
+		if (smartConformance.getJwksUri() == null) {
+			// Per request until found, since the authorization server may come up after this servlet.
+			smartConformance.setJwksUri(SmartAccessTokenVerifierHolder.getResolvedJwksUri());
 		}
 
 		res.setContentType("application/json");

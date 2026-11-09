@@ -9,14 +9,12 @@
  */
 package org.openmrs.module.smartonfhir.auth;
 
-import java.util.Set;
-
 import org.openmrs.module.authentication.AuthenticationCredentials;
 import org.openmrs.module.smartonfhir.util.SmartAccessTokenVerifier.SmartAccessToken;
 
 /**
- * An already-verified SMART access token, in the form the authentication module expects. Built only
- * from a {@link SmartAccessToken}, so no credential exists without a token behind it.
+ * A SMART access token in the form the authentication module expects. Constructing one proves
+ * nothing; this module builds it only from what its token verifier returned.
  */
 public class SmartBearerCredentials implements AuthenticationCredentials {
 
@@ -26,18 +24,9 @@ public class SmartBearerCredentials implements AuthenticationCredentials {
 
 	private final String username;
 
-	private final String patient;
-
-	private final String encounter;
-
-	private final Set<String> scopes;
-
 	public SmartBearerCredentials(String schemeId, SmartAccessToken token) {
 		this.schemeId = schemeId;
 		this.username = token.username();
-		this.patient = token.patient();
-		this.encounter = token.encounter();
-		this.scopes = token.scopes();
 	}
 
 	@Override
@@ -48,17 +37,5 @@ public class SmartBearerCredentials implements AuthenticationCredentials {
 	@Override
 	public String getClientName() {
 		return username;
-	}
-
-	public String getPatient() {
-		return patient;
-	}
-
-	public String getEncounter() {
-		return encounter;
-	}
-
-	public Set<String> getScopes() {
-		return scopes;
 	}
 }

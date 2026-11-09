@@ -41,13 +41,6 @@ public class SmartBearerTokenFilter implements Filter {
 
 	public static final String BEARER_PREFIX = "Bearer ";
 
-	/** Request attributes the FHIR layer can read the granted launch context from. */
-	public static final String ATTRIBUTE_PATIENT = "org.openmrs.module.smartonfhir.patient";
-
-	public static final String ATTRIBUTE_ENCOUNTER = "org.openmrs.module.smartonfhir.encounter";
-
-	public static final String ATTRIBUTE_SCOPES = "org.openmrs.module.smartonfhir.scopes";
-
 	@Override
 	public void init(FilterConfig filterConfig) {
 	}
@@ -70,9 +63,8 @@ public class SmartBearerTokenFilter implements Filter {
 		}
 
 		if (Context.isAuthenticated()) {
-			// An earlier identity wins, so the app runs with that user's privileges and no launch context.
-			log.warn("A SMART access token was presented on an already-authenticated request; it was not used, "
-			        + "and no launch context is available to this request");
+			// An earlier identity wins, so the app runs with that user's privileges.
+			log.warn("A SMART access token was presented on an already-authenticated request; it was not used");
 			chain.doFilter(req, res);
 			return;
 		}
@@ -106,10 +98,6 @@ public class SmartBearerTokenFilter implements Filter {
 		}
 
 		try {
-			request.setAttribute(ATTRIBUTE_PATIENT, token.patient());
-			request.setAttribute(ATTRIBUTE_ENCOUNTER, token.encounter());
-			request.setAttribute(ATTRIBUTE_SCOPES, token.scopes());
-
 			chain.doFilter(req, res);
 		}
 		finally {

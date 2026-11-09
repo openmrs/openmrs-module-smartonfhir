@@ -19,13 +19,16 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 import com.nimbusds.jwt.JWTClaimsSet;
+import lombok.extern.slf4j.Slf4j;
 import org.openmrs.User;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartSession;
 import org.openmrs.module.smartonfhir.util.SmartLaunchContextService;
 import org.openmrs.module.smartonfhir.util.SmartLaunchTokens;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
+import org.openmrs.module.smartonfhir.web.util.SmartLaunchTargets;
 
+@Slf4j
 public class SmartAccessConfirmation extends HttpServlet {
 
 	public static final String PATIENT_NAME = "patient";
@@ -41,6 +44,14 @@ public class SmartAccessConfirmation extends HttpServlet {
 			return;
 		}
 		String decodedUrl = URLDecoder.decode(token, StandardCharsets.UTF_8.name());
+
+		// A token naming the user goes to this address, so it must be the authorization server's own.
+		if (!SmartLaunchTargets.isAuthorizationServerAddress(decodedUrl)) {
+			log.error("Refused to send a launch token to an address that is not the authorization server");
+			res.sendError(HttpServletResponse.SC_BAD_REQUEST, "The launch target is not the authorization server");
+			return;
+		}
+
 		User user = Context.getAuthenticatedUser();
 
 		if (user == null) {

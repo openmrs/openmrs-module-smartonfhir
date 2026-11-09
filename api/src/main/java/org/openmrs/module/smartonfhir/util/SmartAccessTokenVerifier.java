@@ -150,9 +150,5 @@ public class SmartAccessTokenVerifier {
 		public SmartAccessToken {
 			scopes = scopes == null ? Set.of() : Set.copyOf(scopes);
 		}
-
-		public boolean hasScope(String scope) {
-			return scopes.contains(scope);
-		}
 	}
 }

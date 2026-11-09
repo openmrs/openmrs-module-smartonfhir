@@ -24,7 +24,7 @@ import org.openmrs.module.smartonfhir.model.SmartOAuth2Config;
 
 /**
  * Builds the {@link SmartAccessTokenVerifier} on first use, because it needs the authorization
- * server reachable; a failure leaves SMART unavailable and is retried by the next request.
+ * server reachable; a failure leaves SMART unavailable until a retry after {@link #RETRY_MILLIS}.
  */
 @Slf4j
 public class SmartAccessTokenVerifierHolder {
@@ -32,6 +32,14 @@ public class SmartAccessTokenVerifierHolder {
 	private static volatile SmartAccessTokenVerifier verifier;
 
 	private static volatile String resolvedJwksUri;
+
+	/**
+	 * After a failed build, requests are refused for this long without retrying, rather than each
+	 * waiting on discovery.
+	 */
+	static final long RETRY_MILLIS = 30_000L;
+
+	private static volatile long retryAfterMillis;
 
 	/**
 	 * @return the verifier, or null if SMART is unconfigured or the authorization server's keys could
@@ -45,9 +53,13 @@ public class SmartAccessTokenVerifierHolder {
 			synchronized (SmartAccessTokenVerifierHolder.class) {
 				built = verifier;
 
-				if (built == null) {
+				if (built == null && System.currentTimeMillis() >= retryAfterMillis) {
 					build();
 					built = verifier;
+
+					if (built == null) {
+						retryAfterMillis = System.currentTimeMillis() + RETRY_MILLIS;
+					}
 				}
 			}
 		}
@@ -59,6 +71,7 @@ public class SmartAccessTokenVerifierHolder {
 	public static synchronized void reset() {
 		verifier = null;
 		resolvedJwksUri = null;
+		retryAfterMillis = 0;
 	}
 
 	/**

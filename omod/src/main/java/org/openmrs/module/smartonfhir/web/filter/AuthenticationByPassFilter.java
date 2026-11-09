@@ -23,7 +23,6 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -41,8 +40,6 @@ public class AuthenticationByPassFilter implements Filter {
 	public static final String SMART_AUTH_BYPASS = "SMART_AUTH_BYPASS";
 
 	private static final String VALID_URLS_PARAM = "validUrls";
-
-	private static final Pattern KEY_PARAM = Pattern.compile("^key=([^&]*)(?:&|$)");
 
 	private List<String> validUrls = new ArrayList<>(0);
 
@@ -113,59 +110,56 @@ public class AuthenticationByPassFilter implements Filter {
 					// Still fail-closed, since the servlets check Context.isAuthenticated() themselves.
 					log.warn("A request to a launch URL carried a token with no readable key; not authenticating it");
 				} else {
-					{
+					// Read but not trusted; the nested user token, whose signature is checked, names the user.
+					JWTClaimsSet outerClaims = SmartLaunchTokens.readUnverifiedClaims(key);
 
-						// Read but not trusted; the nested token verified below names the user.
-						JWTClaimsSet outerClaims = SmartLaunchTokens.readUnverifiedClaims(key);
+					if (outerClaims == null) {
+						response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+						return;
+					}
 
-						if (outerClaims == null) {
-							response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
-							return;
-						}
+					Object userTokenClaim = outerClaims.getClaim("user");
 
-						Object userTokenClaim = outerClaims.getClaim("user");
+					if (userTokenClaim == null) {
+						log.error("Could not read the user entry from the launch token");
+						response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+						return;
+					}
 
-						if (userTokenClaim == null) {
-							log.error("Could not read the user entry from the launch token");
-							response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
-							return;
-						}
+					JWTClaimsSet userClaims = SmartLaunchTokens.verify(userTokenClaim.toString(),
+					    SmartSecretKeyHolder.getSecretKey());
 
-						JWTClaimsSet userClaims = SmartLaunchTokens.verify(userTokenClaim.toString(),
-						    SmartSecretKeyHolder.getSecretKey());
+					if (userClaims == null) {
+						response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+						return;
+					}
 
-						if (userClaims == null) {
-							response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
-							return;
-						}
+					final String username = userClaims.getSubject();
 
-						final String username = userClaims.getSubject();
+					if (username == null || username.isBlank()) {
+						// Expected on an EHR launch, but a sign of trouble on a standalone one.
+						log.warn(
+						    "A launch token carrying no user reached {} -- inner token type '{}', subject {}, issued {}, expires {}, issuer '{}'. "
+						            + "For an EHR launch this is expected and the launch continues at the login form; for a standalone launch it is not.",
+						    request.getRequestURI(), userClaims.getClaim("typ"), username == null ? "absent" : "blank",
+						    userClaims.getIssueTime(), userClaims.getExpirationTime(), userClaims.getIssuer());
+						response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+						return;
+					}
 
-						if (username == null || username.isBlank()) {
-							// Expected on an EHR launch, but a sign of trouble on a standalone one.
-							log.warn(
-							    "A launch token carrying no user reached {} -- inner token type '{}', subject {}, issued {}, expires {}, issuer '{}'. "
-							            + "For an EHR launch this is expected and the launch continues at the login form; for a standalone launch it is not.",
-							    request.getRequestURI(), userClaims.getClaim("typ"), username == null ? "absent" : "blank",
-							    userClaims.getIssueTime(), userClaims.getExpirationTime(), userClaims.getIssuer());
-							response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
-							return;
-						}
+					try {
+						Context.authenticate(new SmartTokenCredentials(username));
 
-						try {
-							Context.authenticate(new SmartTokenCredentials(username));
+						// Marked first: SmartLaunchOptionSelected and the off-list branch end the session by it.
+						request.getSession().setAttribute(SMART_AUTH_BYPASS, true);
 
-							// Marked before anything that can throw, since the teardown below keys off it.
-							request.getSession().setAttribute(SMART_AUTH_BYPASS, true);
-
-							Context.getUserContext().setLocation(Context.getLocationService().getDefaultLocation());
-						}
-						catch (Exception e) {
-							log.error("Error while logging in as user {}", username, e);
-							Context.logout();
-							response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
-							return;
-						}
+						Context.getUserContext().setLocation(Context.getLocationService().getDefaultLocation());
+					}
+					catch (Exception e) {
+						log.error("Error while logging in as user {}", username, e);
+						Context.logout();
+						response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Not authenticated");
+						return;
 					}
 				}
 			}

@@ -35,6 +35,7 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.openmrs.module.smartonfhir.util.SmartAccessTokenVerifierHolder;
 import org.openmrs.module.smartonfhir.util.SmartOAuth2ConfigHolder;
 import org.openmrs.util.OpenmrsUtil;
 
@@ -63,12 +64,14 @@ public class SmartConfigServletTest {
 		previousAppDataDirectory = OpenmrsUtil.getApplicationDataDirectory();
 		OpenmrsUtil.setApplicationDataDirectory(appData.toString());
 		SmartOAuth2ConfigHolder.reset();
+		SmartAccessTokenVerifierHolder.reset();
 	}
 
 	@AfterEach
 	public void restore() {
 		OpenmrsUtil.setApplicationDataDirectory(previousAppDataDirectory);
 		SmartOAuth2ConfigHolder.reset();
+		SmartAccessTokenVerifierHolder.reset();
 	}
 
 	@Test
@@ -76,7 +79,7 @@ public class SmartConfigServletTest {
 		Map<String, Object> document = serve("");
 
 		assertThat(document, not(hasKey("introspection_endpoint")));
-		// A stated endpoint is still there, so the assertion above is not about a document that failed.
+		// A stated endpoint is still there, so the missing introspection_endpoint is not a document that failed.
 		assertThat((String) document.get("token_endpoint"),
 		    is("https://kc.example.org/realms/openmrs/protocol/openid-connect/token"));
 	}
@@ -88,6 +91,39 @@ public class SmartConfigServletTest {
 
 		assertThat((String) document.get("introspection_endpoint"),
 		    is("https://kc.example.org/realms/openmrs/protocol/openid-connect/token/introspect"));
+	}
+
+	@Test
+	public void doGet_shouldAdvertiseTheKeysOnceTheyCanBeFoundAfterStartup() throws Exception {
+		// Discovery against a closed port fails at once, as it does while the authorization server is down.
+		writeConfig("{\"issuer\":\"http://127.0.0.1:1/realms/openmrs\",\"audience\":\"https://openmrs.example.org\","
+		        + "\"discovery_timeout_seconds\":1}");
+		SmartConfigServlet servlet = new SmartConfigServlet();
+		servlet.init();
+
+		assertThat(get(servlet), not(hasKey("jwks_uri")));
+
+		writeConfig("{\"issuer\":\"http://127.0.0.1:1/realms/openmrs\",\"audience\":\"https://openmrs.example.org\","
+		        + "\"jwks_uri\":\"http://127.0.0.1:1/realms/openmrs/protocol/openid-connect/certs\"}");
+		SmartAccessTokenVerifierHolder.reset();
+
+		assertThat((String) get(servlet).get("jwks_uri"),
+		    is("http://127.0.0.1:1/realms/openmrs/protocol/openid-connect/certs"));
+	}
+
+	private void writeConfig(String json) throws Exception {
+		File config = appData.resolve("config").toFile();
+		assertTrue(config.mkdirs() || config.isDirectory());
+		Files.write(config.toPath().resolve(SmartOAuth2ConfigHolder.CONFIG_FILE_NAME),
+		    json.getBytes(StandardCharsets.UTF_8));
+		SmartOAuth2ConfigHolder.reset();
+	}
+
+	private Map<String, Object> get(SmartConfigServlet servlet) throws Exception {
+		StringWriter body = new StringWriter();
+		when(response.getWriter()).thenReturn(new PrintWriter(body));
+		servlet.doGet(request, response);
+		return MAPPER.readValue(body.toString(), Map.class);
 	}
 
 	/**

@@ -15,27 +15,31 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 
 import java.io.IOException;
-import java.net.URISyntaxException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 
 import com.nimbusds.jwt.JWTClaimsSet;
 import lombok.extern.slf4j.Slf4j;
 import org.openmrs.api.context.Context;
-import org.openmrs.module.smartonfhir.model.SmartOAuth2Config;
 import org.openmrs.module.smartonfhir.util.SmartLaunchTokens;
-import org.openmrs.module.smartonfhir.util.SmartOAuth2ConfigHolder;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
 import org.openmrs.module.smartonfhir.web.filter.AuthenticationByPassFilter;
 import org.openmrs.module.smartonfhir.web.util.SmartLaunchTargets;
-import org.springframework.util.MultiValueMap;
-import org.springframework.web.util.UriComponents;
-import org.springframework.web.util.UriComponentsBuilder;
 
 @Slf4j
 public class SmartLaunchOptionSelected extends HttpServlet {
 
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
+		// On every outcome, so a failed or refused launch does not leave the bypass session behind.
+		try {
+			selectLaunchContext(req, res);
+		}
+		finally {
+			endSessionIfItExistedOnlyForThisLaunch(req);
+		}
+	}
+
+	private void selectLaunchContext(HttpServletRequest req, HttpServletResponse res) throws IOException {
 		String token = getParameter(req, "token");
 		String patientId = getParameter(req, "patientId");
 		String visitId = getParameter(req, "visitId");
@@ -56,7 +60,7 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 		final String decodedUrl = SmartLaunchTargets.decodeLaunchTarget(token);
 
 		// The signed token goes to this address, so it must be the authorization server's own.
-		if (!isAuthorizationServerAddress(decodedUrl)) {
+		if (!SmartLaunchTargets.isAuthorizationServerAddress(decodedUrl)) {
 			log.error("Refused to send launch context to an address that is not the authorization server");
 			res.sendError(HttpServletResponse.SC_BAD_REQUEST, "The launch target is not the authorization server");
 			return;
@@ -94,14 +98,12 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 
 		String encodedToken = URLEncoder.encode(appToken, StandardCharsets.UTF_8.name());
 
-		endSessionIfItExistedOnlyForThisLaunch(req);
-
 		res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", encodedToken));
 	}
 
 	/**
-	 * Ends the OpenMRS session the launch token created, now the hand-off is done. Only a session the
-	 * bypass filter made is ended; a clinician who was already signed in keeps theirs.
+	 * Ends the OpenMRS session the launch token created. Only a session the bypass filter made is
+	 * ended; a clinician who was already signed in keeps theirs.
 	 */
 	private void endSessionIfItExistedOnlyForThisLaunch(HttpServletRequest req) {
 		HttpSession session = req.getSession(false);
@@ -115,32 +117,6 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 		session.removeAttribute(AuthenticationByPassFilter.SMART_AUTH_BYPASS);
 	}
 
-	/**
-	 * Whether a launch target belongs to the configured authorization server, compared on origin so a
-	 * host merely starting with the issuer's cannot pass.
-	 */
-	private boolean isAuthorizationServerAddress(String target) {
-		final SmartOAuth2Config config = SmartOAuth2ConfigHolder.getConfig();
-
-		if (target == null || config == null || config.getIssuer() == null) {
-			return false;
-		}
-
-		// UriComponentsBuilder rather than java.net.URI, which rejects the {APP_TOKEN} placeholder.
-		try {
-			UriComponents candidate = UriComponentsBuilder.fromUriString(target).build();
-			UriComponents issuer = UriComponentsBuilder.fromUriString(config.getIssuer()).build();
-
-			return candidate.getScheme() != null && candidate.getScheme().equalsIgnoreCase(issuer.getScheme())
-			        && candidate.getHost() != null && candidate.getHost().equalsIgnoreCase(issuer.getHost())
-			        && candidate.getPort() == issuer.getPort();
-		}
-		catch (Exception e) {
-			log.error("A launch target could not be parsed", e);
-			return false;
-		}
-	}
-
 	private String getParameter(HttpServletRequest request, String parameter) {
 		String result = request.getParameter(parameter);
 		if (result == null || result.isEmpty()) {
@@ -148,16 +124,6 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 		}
 
 		return result;
-	}
-
-	private String getParameterFromStringUrl(String url, String parameter) throws URISyntaxException {
-		MultiValueMap<String, String> params = UriComponentsBuilder.fromUriString(url).build().getQueryParams();
-
-		if (params.containsKey(parameter)) {
-			return params.getFirst(parameter);
-		}
-
-		return null;
 	}
 
 	/**

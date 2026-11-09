@@ -55,8 +55,8 @@ public class SmartBearerTokenAuthenticationScheme implements ConfigurableAuthent
 	}
 
 	/**
-	 * Maps a username onto an OpenMRS user without a password, which is sound only because both
-	 * {@link SmartBearerCredentials} and {@link SmartTokenCredentials} require a verified token.
+	 * Maps a username onto an OpenMRS user without a password. The credentials do not prove anything
+	 * themselves; this module builds them from a request only after verifying its token.
 	 */
 	private Authenticated authenticateAsNamedUser(String username, String schemeName) {
 		User user = findUser(username);
@@ -73,8 +73,8 @@ public class SmartBearerTokenAuthenticationScheme implements ConfigurableAuthent
 	}
 
 	/**
-	 * The one entry point. Bearer credentials cannot be forged into existence here, because
-	 * {@link SmartBearerCredentials} can only be built from an already-verified token.
+	 * The one entry point. Any caller of {@code Context.authenticate} can construct these credentials,
+	 * so code outside the token-checking filters must not pass them a username from a request.
 	 */
 	@Override
 	public Authenticated authenticate(Credentials credentials) throws ContextAuthenticationException {

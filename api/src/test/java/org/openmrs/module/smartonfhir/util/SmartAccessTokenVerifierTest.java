@@ -133,8 +133,8 @@ class SmartAccessTokenVerifierTest {
 			    signedBy(serverKey, validClaims().claim("scope", "openid launch/patient patient/Observation.rs").build()));
 
 			assertEquals(3, token.scopes().size());
-			assertTrue(token.hasScope("patient/Observation.rs"));
-			assertTrue(token.hasScope("launch/patient"));
+			assertTrue(token.scopes().contains("patient/Observation.rs"));
+			assertTrue(token.scopes().contains("launch/patient"));
 		}
 
 		@Test
