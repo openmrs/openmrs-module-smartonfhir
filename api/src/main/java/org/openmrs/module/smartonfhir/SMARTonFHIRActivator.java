@@ -17,5 +17,5 @@ import org.openmrs.module.BaseModuleActivator;
  */
 @Slf4j
 public class SMARTonFHIRActivator extends BaseModuleActivator {
-	
+
 }
