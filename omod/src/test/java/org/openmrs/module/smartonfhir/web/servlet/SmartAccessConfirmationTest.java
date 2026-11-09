@@ -135,6 +135,16 @@ public class SmartAccessConfirmationTest {
 	}
 
 	@Test
+	public void doGet_shouldRefuseABracketThatBrowsersReadAsPartOfUserinfo() throws Exception {
+		givenLaunch("https://kc.example.org[@evil.example/cb?t={APP_TOKEN}");
+
+		new SmartAccessConfirmation().doGet(request, response);
+
+		verify(response).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+		verify(response, never()).sendRedirect(anyString());
+	}
+
+	@Test
 	public void doGet_shouldRefuseAForeignTargetBeforeAnyoneIsSignedIn() throws Exception {
 		context.when(Context::getAuthenticatedUser).thenReturn(null);
 		when(request.getParameter("token")).thenReturn(encode("https://evil.example/cb?t={APP_TOKEN}"));
@@ -162,6 +172,45 @@ public class SmartAccessConfirmationTest {
 		assertNotNull(claims);
 		assertEquals("clinician", claims.getSubject());
 		assertEquals("patient-uuid", claims.getClaim(SmartAccessConfirmation.PATIENT_NAME));
+	}
+
+	@Test
+	public void doGet_shouldSendTheClinicianTokenToAnIssuerOnAnExplicitPort() throws Exception {
+		givenIssuer("http://localhost:8180/realms/openmrs");
+		givenLaunch("http://localhost:8180/realms/openmrs/login-actions/authenticate?client_id=x&app_token={APP_TOKEN}");
+
+		new SmartAccessConfirmation().doGet(request, response);
+
+		verify(response).sendRedirect(anyString());
+		verify(response, never()).sendError(anyInt(), anyString());
+	}
+
+	@Test
+	public void doGet_shouldRefuseTheIssuersHostOnAnotherPort() throws Exception {
+		givenIssuer("http://localhost:8180/realms/openmrs");
+		givenLaunch("http://localhost/realms/openmrs/login-actions/authenticate?app_token={APP_TOKEN}");
+
+		new SmartAccessConfirmation().doGet(request, response);
+
+		verify(response).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+		verify(response, never()).sendRedirect(anyString());
+	}
+
+	@Test
+	public void doGet_shouldTreatAnIssuerSpellingOutTheDefaultPortAsTheSameOrigin() throws Exception {
+		givenIssuer("https://kc.example.org:443/realms/openmrs/");
+		givenLaunch("https://kc.example.org/realms/openmrs/login-actions/authenticate?app_token={APP_TOKEN}");
+
+		new SmartAccessConfirmation().doGet(request, response);
+
+		verify(response).sendRedirect(anyString());
+		verify(response, never()).sendError(anyInt(), anyString());
+	}
+
+	private void givenIssuer(String issuer) {
+		SmartOAuth2Config config = new SmartOAuth2Config();
+		config.setIssuer(issuer);
+		oauth2Config.when(SmartOAuth2ConfigHolder::getConfig).thenReturn(config);
 	}
 
 	private void givenLaunch(String target) throws Exception {

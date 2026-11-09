@@ -68,29 +68,39 @@ public class SmartLaunchTargets {
 	}
 
 	/**
-	 * Whether a launch target belongs to the configured authorization server, compared on origin. A
-	 * backslash or userinfo is refused, since browsers can read the host differently from Spring.
+	 * Whether a launch target starts with the issuer's {@code scheme://host[:port]/}. Matching the raw
+	 * text leaves no authority for a browser and a URI parser to read differently.
 	 */
 	public static boolean isAuthorizationServerAddress(String target) {
 		final SmartOAuth2Config config = SmartOAuth2ConfigHolder.getConfig();
 
-		if (target == null || target.indexOf('\\') >= 0 || config == null || config.getIssuer() == null) {
+		if (target == null || config == null || config.getIssuer() == null) {
 			return false;
 		}
 
-		// UriComponentsBuilder rather than java.net.URI, which rejects the {APP_TOKEN} placeholder.
 		try {
-			UriComponents candidate = UriComponentsBuilder.fromUriString(target).build();
 			UriComponents issuer = UriComponentsBuilder.fromUriString(config.getIssuer()).build();
 
-			return candidate.getUserInfo() == null && candidate.getScheme() != null
-			        && candidate.getScheme().equalsIgnoreCase(issuer.getScheme()) && candidate.getHost() != null
-			        && candidate.getHost().equalsIgnoreCase(issuer.getHost()) && candidate.getPort() == issuer.getPort();
+			if (issuer.getScheme() == null || issuer.getHost() == null) {
+				return false;
+			}
+
+			String origin = issuer.getScheme() + "://" + issuer.getHost();
+			int defaultPort = "https".equalsIgnoreCase(issuer.getScheme()) ? 443
+			        : "http".equalsIgnoreCase(issuer.getScheme()) ? 80 : -1;
+			int port = issuer.getPort() == -1 ? defaultPort : issuer.getPort();
+
+			return (port != -1 && startsWithIgnoreCase(target, origin + ":" + port + "/"))
+			        || (port == defaultPort && startsWithIgnoreCase(target, origin + "/"));
 		}
 		catch (Exception e) {
-			log.error("A launch target could not be parsed", e);
+			log.error("The configured issuer could not be parsed", e);
 			return false;
 		}
+	}
+
+	private static boolean startsWithIgnoreCase(String text, String prefix) {
+		return text.regionMatches(true, 0, prefix, 0, prefix.length());
 	}
 
 }

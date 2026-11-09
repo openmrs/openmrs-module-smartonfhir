@@ -91,6 +91,17 @@ public class SmartLaunchOptionSelectedTest {
 	}
 
 	@Test
+	public void doGet_shouldRefuseABracketThatBrowsersReadAsPartOfUserinfo() throws Exception {
+		when(request.getParameter("token")).thenReturn(
+		    URLEncoder.encode("https://kc.example.org[@evil.example/cb?t={APP_TOKEN}", StandardCharsets.UTF_8.name()));
+
+		new SmartLaunchOptionSelected().doGet(request, response);
+
+		verify(response).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+		verify(response, never()).sendRedirect(anyString());
+	}
+
+	@Test
 	public void doGet_shouldLeaveASessionTheClinicianOpenedThemselves() throws Exception {
 		when(session.getAttribute(AuthenticationByPassFilter.SMART_AUTH_BYPASS)).thenReturn(null);
 
