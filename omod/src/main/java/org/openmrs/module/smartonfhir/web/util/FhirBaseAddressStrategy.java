@@ -10,6 +10,7 @@
 package org.openmrs.module.smartonfhir.web.util;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletRequestWrapper;
 
 import ca.uhn.fhir.rest.server.IServerAddressStrategy;
 import org.openmrs.api.context.Context;
@@ -25,7 +26,7 @@ public class FhirBaseAddressStrategy {
 	public String getFhirBaseUrl(HttpServletRequest request) {
 		IServerAddressStrategy addressStrategy = Context.getRegisteredComponent("openmrsFhirAddressStrategy",
 		    IServerAddressStrategy.class);
-		String baseUrl = addressStrategy.determineServerBase(request.getServletContext(), request);
+		String baseUrl = addressStrategy.determineServerBase(request.getServletContext(), asFhirRequest(request));
 
 		if (baseUrl == null) {
 			return null;
@@ -35,8 +36,28 @@ public class FhirBaseAddressStrategy {
 			return baseUrl;
 		}
 
+		return baseUrl + fhirVersion(request);
+	}
+
+	/**
+	 * The request as it would look addressed to the FHIR API, which is what FHIR2's address strategy
+	 * expects: given a launch servlet's own URI it cannot tell which FHIR version is meant.
+	 */
+	private HttpServletRequest asFhirRequest(HttpServletRequest request) {
+		final String uri = request.getContextPath() + "/ws/fhir2/" + fhirVersion(request);
+
+		return new HttpServletRequestWrapper(request) {
+
+			@Override
+			public String getRequestURI() {
+				return uri;
+			}
+		};
+	}
+
+	private String fhirVersion(HttpServletRequest request) {
 		String fhirVersion = request.getParameter("fhirVersion");
 
-		return baseUrl + (fhirVersion == null ? DEFAULT_FHIR_VERSION : fhirVersion);
+		return fhirVersion == null || fhirVersion.isBlank() ? DEFAULT_FHIR_VERSION : fhirVersion.trim();
 	}
 }
