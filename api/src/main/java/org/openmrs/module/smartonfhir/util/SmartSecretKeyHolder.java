@@ -9,23 +9,19 @@
  */
 package org.openmrs.module.smartonfhir.util;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.file.Paths;
 import java.util.Base64;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
-import org.openmrs.module.smartonfhir.model.SmartSecretKey;
-import org.openmrs.util.OpenmrsUtil;
+import org.openmrs.api.context.Context;
 
 @Slf4j
 public class SmartSecretKeyHolder {
 
-	private static final ObjectMapper objectMapper = new ObjectMapper();
+	/**
+	 * The runtime property the secret is read from, in preference to the configuration file, so a
+	 * container can pass it in the environment as {@code OMRS_EXTRA_SMART_LAUNCH_SECRET}.
+	 */
+	public static final String SECRET_RUNTIME_PROPERTY = "smart.launch.secret";
 
 	private static volatile byte[] secretKey = null;
 
@@ -42,30 +38,43 @@ public class SmartSecretKeyHolder {
 	}
 
 	private static void loadSecretKey() {
-		final File file = Paths.get(OpenmrsUtil.getApplicationDataDirectory(), "config", "smart-secret-key.json").toFile();
-
-		if (!file.canRead()) {
-			log.warn("No SMART launch secret at {}. The launch handshake with the authorization server cannot be "
-			        + "verified until one exists, and launches will be refused.",
-			    file.getAbsolutePath());
+		if (loadFromRuntimeProperty()) {
 			return;
 		}
 
-		try (InputStream in = new BufferedInputStream(new FileInputStream(file))) {
-			String encoded = objectMapper.readValue(in, SmartSecretKey.class).getSmartSharedSecretKey();
+		log.warn(
+		    "No SMART launch secret: set {} in the runtime properties. The launch handshake with the "
+		            + "authorization server cannot be verified until one exists, and launches will be refused.",
+		    SECRET_RUNTIME_PROPERTY);
+	}
 
-			if (encoded == null || encoded.isBlank()) {
-				log.error("{} does not set 'smart_shared_secret_key'", file.getAbsolutePath());
-				return;
-			}
+	/**
+	 * Reads the secret from {@link #SECRET_RUNTIME_PROPERTY}. A property that is set but unusable still
+	 * counts as set, so the error is reported rather than hidden by a fallback to the file.
+	 */
+	private static boolean loadFromRuntimeProperty() {
+		String encoded;
 
+		try {
+			encoded = Context.getRuntimeProperties().getProperty(SECRET_RUNTIME_PROPERTY);
+		}
+		catch (Exception e) {
+			// Reached before the runtime properties are available, which the file path can still serve.
+			return false;
+		}
+
+		if (encoded == null || encoded.isBlank()) {
+			return false;
+		}
+
+		try {
 			secretKey = Base64.getDecoder().decode(encoded.trim());
 		}
-		catch (IOException e) {
-			log.error("Could not read {}", file.getAbsolutePath(), e);
-		}
 		catch (IllegalArgumentException e) {
-			log.error("The value of 'smart_shared_secret_key' in {} is not valid base64", file.getAbsolutePath(), e);
+			log.error("The runtime property {} is not valid base64, so no launch can be verified", SECRET_RUNTIME_PROPERTY,
+			    e);
 		}
+
+		return true;
 	}
 }
