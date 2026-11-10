@@ -18,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.util.Arrays;
 import java.util.Date;
 
+import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.JWSHeader;
 import com.nimbusds.jose.crypto.MACSigner;
@@ -95,6 +96,14 @@ class SmartAccessTokenVerifierTest {
 		return jwt.serialize();
 	}
 
+	private static String signedWithType(String type, JWTClaimsSet claims) throws Exception {
+		SignedJWT jwt = new SignedJWT(
+		        new JWSHeader.Builder(JWSAlgorithm.RS256).keyID(serverKey.getKeyID()).type(new JOSEObjectType(type)).build(),
+		        claims);
+		jwt.sign(new RSASSASigner(serverKey));
+		return jwt.serialize();
+	}
+
 	@Nested
 	@DisplayName("a token the authorization server issued for this FHIR server")
 	class Accepted {
@@ -155,6 +164,12 @@ class SmartAccessTokenVerifierTest {
 			    validClaims().audience(Arrays.asList("https://other.example.org/fhir", AUDIENCE)).build()));
 
 			assertNotNull(token, "aud may be an array; this server appearing in it is enough");
+		}
+
+		@ValueSource(strings = { "JWT", "at+jwt", "application/at+jwt" })
+		@ParameterizedTest(name = "is accepted when typed {0}")
+		void acceptsTheAccessTokenTypes(String type) throws Exception {
+			assertNotNull(verifier.verify(signedWithType(type, validClaims().build())));
 		}
 	}
 
@@ -258,6 +273,12 @@ class SmartAccessTokenVerifierTest {
 		@ParameterizedTest(name = "malformed: [{0}]")
 		void malformed(String candidate) {
 			assertNull(verifier.verify(candidate));
+		}
+
+		@Test
+		@DisplayName("typed as something other than an access token")
+		void otherType() throws Exception {
+			assertNull(verifier.verify(signedWithType("logout+jwt", validClaims().build())));
 		}
 
 		@Test

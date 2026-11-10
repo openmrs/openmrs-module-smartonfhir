@@ -22,6 +22,7 @@ import static org.mockito.Mockito.when;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import java.net.URLDecoder;
 import java.net.URLEncoder;
@@ -46,6 +47,7 @@ import org.openmrs.module.smartonfhir.util.SmartLaunchContextService;
 import org.openmrs.module.smartonfhir.util.SmartLaunchTokens;
 import org.openmrs.module.smartonfhir.util.SmartOAuth2ConfigHolder;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
+import org.openmrs.module.smartonfhir.web.filter.AuthenticationByPassFilter;
 
 /** The token this servlet signs names the clinician, so where it is sent decides who can use it. */
 @ExtendWith(MockitoExtension.class)
@@ -63,6 +65,9 @@ public class SmartAccessConfirmationTest {
 
 	@Mock
 	private HttpServletResponse response;
+
+	@Mock
+	private HttpSession session;
 
 	private MockedStatic<Context> context;
 
@@ -205,6 +210,57 @@ public class SmartAccessConfirmationTest {
 
 		verify(response).sendRedirect(anyString());
 		verify(response, never()).sendError(anyInt(), anyString());
+	}
+
+	@Test
+	public void doGet_shouldRefuseAnotherPortThatOnlyStartsWithTheIssuersPort() throws Exception {
+		givenIssuer("http://localhost:8180/realms/openmrs");
+		givenLaunch("http://localhost:81800/realms/openmrs/login-actions/authenticate?app_token={APP_TOKEN}");
+
+		new SmartAccessConfirmation().doGet(request, response);
+
+		verify(response).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+		verify(response, never()).sendRedirect(anyString());
+	}
+
+	@Test
+	public void doGet_shouldEndTheBypassSessionOnceTheTokenIsSent() throws Exception {
+		when(request.getSession(false)).thenReturn(session);
+		when(session.getAttribute(AuthenticationByPassFilter.SMART_AUTH_BYPASS)).thenReturn(true);
+		givenLaunch("https://kc.example.org/realms/openmrs/login-actions/action-token?t={APP_TOKEN}");
+
+		new SmartAccessConfirmation().doGet(request, response);
+
+		verify(response).sendRedirect(anyString());
+		context.verify(Context::logout);
+		verify(session).removeAttribute(AuthenticationByPassFilter.SMART_AUTH_BYPASS);
+	}
+
+	@Test
+	public void doGet_shouldEndTheBypassSessionWhenTheLaunchIsUnknown() throws Exception {
+		when(request.getSession(false)).thenReturn(session);
+		when(session.getAttribute(AuthenticationByPassFilter.SMART_AUTH_BYPASS)).thenReturn(true);
+		when(request.getParameter("token"))
+		        .thenReturn(encode("https://kc.example.org/realms/openmrs/login-actions/action-token?t={APP_TOKEN}"));
+
+		new SmartAccessConfirmation().doGet(request, response);
+
+		verify(response).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+		context.verify(Context::logout);
+		verify(session).removeAttribute(AuthenticationByPassFilter.SMART_AUTH_BYPASS);
+	}
+
+	@Test
+	public void doGet_shouldLeaveTheClinicianTheirOwnSession() throws Exception {
+		when(request.getSession(false)).thenReturn(session);
+		when(session.getAttribute(AuthenticationByPassFilter.SMART_AUTH_BYPASS)).thenReturn(null);
+		givenLaunch("https://kc.example.org/realms/openmrs/login-actions/action-token?t={APP_TOKEN}");
+
+		new SmartAccessConfirmation().doGet(request, response);
+
+		verify(response).sendRedirect(anyString());
+		context.verify(Context::logout, never());
+		verify(session, never()).removeAttribute(anyString());
 	}
 
 	private void givenIssuer(String issuer) {

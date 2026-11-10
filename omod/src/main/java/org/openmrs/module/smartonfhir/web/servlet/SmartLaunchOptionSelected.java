@@ -12,7 +12,6 @@ package org.openmrs.module.smartonfhir.web.servlet;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpSession;
 
 import java.io.IOException;
 import java.net.URLEncoder;
@@ -35,7 +34,7 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 			selectLaunchContext(req, res);
 		}
 		finally {
-			endSessionIfItExistedOnlyForThisLaunch(req);
+			AuthenticationByPassFilter.endBypassSession(req);
 		}
 	}
 
@@ -99,22 +98,6 @@ public class SmartLaunchOptionSelected extends HttpServlet {
 		String encodedToken = URLEncoder.encode(appToken, StandardCharsets.UTF_8.name());
 
 		res.sendRedirect(decodedUrl.replace("{APP_TOKEN}", encodedToken));
-	}
-
-	/**
-	 * Ends the OpenMRS session the launch token created. Only a session the bypass filter made is
-	 * ended; a clinician who was already signed in keeps theirs.
-	 */
-	private void endSessionIfItExistedOnlyForThisLaunch(HttpServletRequest req) {
-		HttpSession session = req.getSession(false);
-
-		if (session == null || session.getAttribute(AuthenticationByPassFilter.SMART_AUTH_BYPASS) == null) {
-			return;
-		}
-
-		// The container is left alone: a cookie for a dead session breaks the frontend's session poll.
-		Context.logout();
-		session.removeAttribute(AuthenticationByPassFilter.SMART_AUTH_BYPASS);
 	}
 
 	private String getParameter(HttpServletRequest request, String parameter) {

@@ -153,8 +153,16 @@ public class SmartBearerTokenAuthenticationScheme implements ConfigurableAuthent
 	private AuthenticationScheme buildDelegate() {
 		if (delegateSchemeId != null && !delegateSchemeId.isBlank()) {
 			try {
-				return org.openmrs.module.authentication.AuthenticationConfig
+				AuthenticationScheme scheme = org.openmrs.module.authentication.AuthenticationConfig
 				        .getAuthenticationScheme(delegateSchemeId.trim());
+
+				// An id with no type line comes back null rather than throwing.
+				if (scheme != null) {
+					return scheme;
+				}
+
+				log.error("No type is configured for the delegate scheme '{}'; falling back to username/password",
+				    delegateSchemeId);
 			}
 			catch (Exception e) {
 				log.error("Could not load the configured delegate scheme '{}'; falling back to username/password",

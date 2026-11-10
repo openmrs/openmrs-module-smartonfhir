@@ -105,6 +105,16 @@ class SmartLaunchTokensTest {
 			assertNull(SmartLaunchTokens.verify(jwt.serialize(),secret()));
 		}
 
+		@Test
+		@DisplayName("correctly signed but carrying no expiry")
+		void noExpiry() throws Exception {
+			SignedJWT jwt = new SignedJWT(new JWSHeader(JWSAlgorithm.HS256),
+			        new JWTClaimsSet.Builder().subject(USERNAME).build());
+			jwt.sign(new MACSigner(secret()));
+
+			assertNull(SmartLaunchTokens.verify(jwt.serialize(), secret()));
+		}
+
 		/** The alg=none substitution: the claims are right and only the signature is missing. */
 		@Test
 		@DisplayName("unsigned, with otherwise valid claims")

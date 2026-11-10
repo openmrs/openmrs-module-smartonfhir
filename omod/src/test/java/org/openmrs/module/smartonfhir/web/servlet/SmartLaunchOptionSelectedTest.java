@@ -22,7 +22,9 @@ import javax.servlet.http.HttpSession;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
+import com.nimbusds.jwt.JWTClaimsSet;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -34,7 +36,9 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.smartonfhir.model.SmartOAuth2Config;
+import org.openmrs.module.smartonfhir.util.SmartLaunchTokens;
 import org.openmrs.module.smartonfhir.util.SmartOAuth2ConfigHolder;
+import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
 import org.openmrs.module.smartonfhir.web.filter.AuthenticationByPassFilter;
 
 /**
@@ -98,6 +102,27 @@ public class SmartLaunchOptionSelectedTest {
 		new SmartLaunchOptionSelected().doGet(request, response);
 
 		verify(response).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+		verify(response, never()).sendRedirect(anyString());
+	}
+
+	@Test
+	public void doGet_shouldRefuseToSignContextForAnUnauthenticatedRequest() throws Exception {
+		context.when(Context::isAuthenticated).thenReturn(false);
+		byte[] secret = new byte[32];
+		Arrays.fill(secret, (byte) 7);
+		String key = SmartLaunchTokens.sign(new JWTClaimsSet.Builder().claim("launchType", "launch/patient").build(),
+		    secret);
+		when(request.getParameter("token")).thenReturn(URLEncoder.encode(
+		    "https://kc.example.org/realms/openmrs/login-actions/action-token?key=" + key + "&app_token={APP_TOKEN}",
+		    StandardCharsets.UTF_8.name()));
+
+		try (MockedStatic<SmartSecretKeyHolder> keys = mockStatic(SmartSecretKeyHolder.class)) {
+			keys.when(SmartSecretKeyHolder::getSecretKey).thenReturn(secret);
+
+			new SmartLaunchOptionSelected().doGet(request, response);
+		}
+
+		verify(response).sendError(eq(HttpServletResponse.SC_UNAUTHORIZED), anyString());
 		verify(response, never()).sendRedirect(anyString());
 	}
 

@@ -22,6 +22,8 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.openmrs.util.OpenmrsUtil;
 
 class SmartAccessTokenVerifierHolderTest {
@@ -77,6 +79,15 @@ class SmartAccessTokenVerifierHolderTest {
 		        + "\"jwks_uri\":\"file:///etc/certs.json\"}");
 
 		assertNull(SmartAccessTokenVerifierHolder.getVerifier());
+	}
+
+	@ValueSource(ints = { 1, 44 })
+	@ParameterizedTest(name = "still builds with jwks_cache_seconds {0}")
+	void shouldRaiseACacheLifetimeTooShortForTheKeyCache(int seconds) throws Exception {
+		writeConfig("{\"issuer\":\"not-a-url\",\"audience\":\"https://openmrs.example.org\","
+		        + "\"jwks_uri\":\"http://127.0.0.1:1/certs\",\"jwks_cache_seconds\":" + seconds + "}");
+
+		assertNotNull(SmartAccessTokenVerifierHolder.getVerifier());
 	}
 
 	private void writeConfig(String json) throws Exception {

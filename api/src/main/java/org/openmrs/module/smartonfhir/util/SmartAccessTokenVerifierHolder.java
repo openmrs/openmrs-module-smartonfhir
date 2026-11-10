@@ -115,7 +115,7 @@ public class SmartAccessTokenVerifierHolder {
 			JWKSourceBuilder<SecurityContext> keys = JWKSourceBuilder.create(new URL(jwksUri.trim())).retrying(true);
 
 			if (config.getJwksCacheSeconds() > 0) {
-				keys.cache(config.getJwksCacheSeconds() * 1000L, JWKSourceBuilder.DEFAULT_CACHE_REFRESH_TIMEOUT);
+				keys.cache(jwksCacheMillis(config.getJwksCacheSeconds()), JWKSourceBuilder.DEFAULT_CACHE_REFRESH_TIMEOUT);
 			}
 
 			JWKSource<SecurityContext> keySource = keys.build();
@@ -126,6 +126,20 @@ public class SmartAccessTokenVerifierHolder {
 		catch (Exception e) {
 			log.error("Could not build a token verifier from {}", jwksUri, e);
 		}
+	}
+
+	/** nimbus refuses to build a cache that expires before its refresh-ahead and refresh timeout elapse. */
+	private static long jwksCacheMillis(int configuredSeconds) {
+		long minimum = JWKSourceBuilder.DEFAULT_REFRESH_AHEAD_TIME + JWKSourceBuilder.DEFAULT_CACHE_REFRESH_TIMEOUT;
+		long configured = configuredSeconds * 1000L;
+
+		if (configured < minimum) {
+			log.warn("jwks_cache_seconds is {}, shorter than the {} seconds the key cache needs; using {}",
+			    configuredSeconds, minimum / 1000, minimum / 1000);
+			return minimum;
+		}
+
+		return configured;
 	}
 
 	/**

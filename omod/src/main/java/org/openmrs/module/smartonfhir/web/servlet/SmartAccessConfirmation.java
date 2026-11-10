@@ -26,6 +26,7 @@ import org.openmrs.module.smartonfhir.model.SmartSession;
 import org.openmrs.module.smartonfhir.util.SmartLaunchContextService;
 import org.openmrs.module.smartonfhir.util.SmartLaunchTokens;
 import org.openmrs.module.smartonfhir.util.SmartSecretKeyHolder;
+import org.openmrs.module.smartonfhir.web.filter.AuthenticationByPassFilter;
 import org.openmrs.module.smartonfhir.web.util.SmartLaunchTargets;
 
 @Slf4j
@@ -36,6 +37,16 @@ public class SmartAccessConfirmation extends HttpServlet {
 	public static final String VISIT_NAME = "visit";
 
 	public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
+		// The authorization server needs only the app token, so a session the bypass filter opened ends here.
+		try {
+			confirmAccess(req, res);
+		}
+		finally {
+			AuthenticationByPassFilter.endBypassSession(req);
+		}
+	}
+
+	private void confirmAccess(HttpServletRequest req, HttpServletResponse res) throws IOException {
 		String token = req.getParameter("token");
 		String launchId = req.getParameter("launch");
 

@@ -91,13 +91,7 @@ public class AuthenticationByPassFilter implements Filter {
 		}
 
 		if (!isValidRequest) {
-			HttpSession session = request.getSession(false);
-			if (session != null && session.getAttribute(SMART_AUTH_BYPASS) != null) {
-				// Not invalidated, which would leave a cookie for a session that no longer exists.
-				Context.logout();
-				session.removeAttribute(SMART_AUTH_BYPASS);
-			}
-
+			endBypassSession(request);
 			filterChain.doFilter(request, response);
 			return;
 		}
@@ -161,7 +155,7 @@ public class AuthenticationByPassFilter implements Filter {
 					try {
 						Context.authenticate(new SmartTokenCredentials(username));
 
-						// Marked first: SmartLaunchOptionSelected and the off-list branch end the session by it.
+						// Marked first: endBypassSession ends the session by it.
 						request.getSession().setAttribute(SMART_AUTH_BYPASS, true);
 
 						Context.getUserContext().setLocation(Context.getLocationService().getDefaultLocation());
@@ -177,6 +171,22 @@ public class AuthenticationByPassFilter implements Filter {
 		}
 
 		filterChain.doFilter(request, response);
+	}
+
+	/**
+	 * Ends the OpenMRS session this filter opened for a launch. A session the user opened themselves
+	 * carries no {@link #SMART_AUTH_BYPASS} mark and is left alone.
+	 */
+	public static void endBypassSession(HttpServletRequest request) {
+		HttpSession session = request.getSession(false);
+
+		if (session == null || session.getAttribute(SMART_AUTH_BYPASS) == null) {
+			return;
+		}
+
+		// Not invalidated: a cookie for a dead session breaks the frontend's session poll.
+		Context.logout();
+		session.removeAttribute(SMART_AUTH_BYPASS);
 	}
 
 	@Override

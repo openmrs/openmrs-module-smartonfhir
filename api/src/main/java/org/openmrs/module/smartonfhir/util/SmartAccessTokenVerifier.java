@@ -17,8 +17,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.regex.Pattern;
 
+import com.nimbusds.jose.JOSEObjectType;
 import com.nimbusds.jose.JWSAlgorithm;
 import com.nimbusds.jose.jwk.source.JWKSource;
+import com.nimbusds.jose.proc.DefaultJOSEObjectTypeVerifier;
 import com.nimbusds.jose.proc.JWSVerificationKeySelector;
 import com.nimbusds.jose.proc.SecurityContext;
 import com.nimbusds.jwt.JWTClaimsSet;
@@ -55,6 +57,10 @@ public class SmartAccessTokenVerifier {
 		this.processor = new DefaultJWTProcessor<>();
 
 		processor.setJWSKeySelector(new JWSVerificationKeySelector<>(permittedAlgorithms(config), keySource));
+
+		// RFC 9068 types access tokens at+jwt; nimbus otherwise accepts only JWT or no type.
+		processor.setJWSTypeVerifier(new DefaultJOSEObjectTypeVerifier<>(JOSEObjectType.JWT, new JOSEObjectType("at+jwt"),
+		        new JOSEObjectType("application/at+jwt"), null));
 
 		// nimbus enforces only the claims named here, so omitting exp would admit an endless token.
 		List<String> required = Arrays.asList("exp", "iss", "aud");

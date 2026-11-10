@@ -17,11 +17,15 @@ import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import java.io.IOException;
 
 import lombok.extern.slf4j.Slf4j;
 import org.openmrs.api.context.Context;
+import org.openmrs.api.context.UserContext;
+import org.openmrs.module.authentication.UserLogin;
+import org.openmrs.module.authentication.UserLoginTracker;
 import org.openmrs.module.smartonfhir.auth.SmartBearerCredentials;
 import org.openmrs.module.smartonfhir.util.SmartAccessTokenVerifier;
 import org.openmrs.module.smartonfhir.util.SmartAccessTokenVerifier.SmartAccessToken;
@@ -29,7 +33,7 @@ import org.openmrs.module.smartonfhir.util.SmartAccessTokenVerifierHolder;
 
 /**
  * Authenticates FHIR requests carrying a SMART access token, routing the credentials through
- * {@link Context#authenticate}. The session it opens is discarded when the request completes.
+ * {@link Context#authenticate} on a context of the request's own, discarded when it completes.
  */
 @Slf4j
 public class SmartBearerTokenFilter implements Filter {
@@ -85,6 +89,30 @@ public class SmartBearerTokenFilter implements Filter {
 			return;
 		}
 
+		// Signed in on a context of its own: the session's is shared by every request carrying its cookie.
+		final UserContext sessionContext = Context.getUserContext();
+		Context.setUserContext(new UserContext(Context.getAuthenticationScheme()));
+
+		// The authentication module's filter runs later, so the login and logout are recorded on this one.
+		final UserLogin login = new UserLogin();
+		login.setIpAddress(request.getRemoteAddr());
+		final HttpSession httpSession = request.getSession(false);
+		if (httpSession != null) {
+			login.setHttpSessionId(httpSession.getId());
+		}
+		UserLoginTracker.setLoginOnThread(login);
+
+		try {
+			authenticateAndContinue(request, response, chain, token, login);
+		}
+		finally {
+			UserLoginTracker.removeLoginFromThread();
+			Context.setUserContext(sessionContext);
+		}
+	}
+
+	private void authenticateAndContinue(HttpServletRequest request, HttpServletResponse response, FilterChain chain,
+	        SmartAccessToken token, UserLogin login) throws IOException, ServletException {
 		// Any exception: authenticate() can leave the context logged in while a later one escapes.
 		try {
 			Context.authenticate(new SmartBearerCredentials(SCHEME_ID, token));
@@ -98,9 +126,12 @@ public class SmartBearerTokenFilter implements Filter {
 		}
 
 		try {
-			chain.doFilter(req, res);
+			chain.doFilter(request, response);
 		}
 		finally {
+			// The module's filter takes its own login off the thread on the way out.
+			UserLoginTracker.setLoginOnThread(login);
+
 			// Asks the context what it holds rather than trusting a flag set after authenticate() returned.
 			try {
 				endBearerSession();
