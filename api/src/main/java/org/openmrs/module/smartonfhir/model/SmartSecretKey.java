@@ -7,16 +7,27 @@
  * Copyright (C) OpenMRS Inc. OpenMRS is a registered trademark and the OpenMRS
  * graphic logo is a trademark of OpenMRS Inc.
  */
-package org.openmrs.module.smartonfhir.web;
+package org.openmrs.module.smartonfhir.model;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
-@Data
+@Getter
+@Setter
 @JsonInclude(JsonInclude.Include.NON_EMPTY)
 public class SmartSecretKey {
-	
-	@JsonProperty(value = "smart-shared-secret-key", required = true)
+
+	// The alias keeps a secret file written for the hyphenated key readable.
+	@JsonAlias("smart-shared-secret-key")
+	@JsonProperty(value = "smart_shared_secret_key", required = true)
 	private String smartSharedSecretKey;
+
+	// Hand-written so the base64 secret can never reach a log line.
+	@Override
+	public String toString() {
+		return "SmartSecretKey(***)";
+	}
 }

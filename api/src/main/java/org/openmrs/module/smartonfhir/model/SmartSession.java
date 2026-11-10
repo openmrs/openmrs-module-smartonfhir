@@ -13,8 +13,11 @@ import lombok.Data;
 
 @Data
 public class SmartSession {
-	
+
 	private String visitUuid;
-	
+
 	private String patientUuid;
+
+	/** The user this launch was created for; only they can redeem the handle. */
+	private String username;
 }
